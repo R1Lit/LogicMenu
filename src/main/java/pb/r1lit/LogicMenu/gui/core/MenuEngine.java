@@ -101,6 +101,28 @@ public class MenuEngine implements Listener, MenuNavigation {
         return resolver;
     }
 
+    public List<String> getMenuIds() {
+        return new ArrayList<>(menus.keySet());
+    }
+
+    public int getMenuCount() {
+        return menus.size();
+    }
+
+    public MenuDefinition getMenuDefinition(String id) {
+        return menus.get(id);
+    }
+
+    public Map<String, String> createBaseVars(Player player) {
+        return buildBaseVars(player, 0);
+    }
+
+    public void executeAction(Player player, MenuAction action, Map<String, String> vars) {
+        if (player == null || action == null) return;
+        Map<String, String> safeVars = vars == null ? Map.of() : vars;
+        actionExecutor.execute(player, new MenuState("", 0, safeVars), action, safeVars);
+    }
+
     public void reload() {
         menus.clear();
         openCommandIndex.clear();
@@ -335,7 +357,7 @@ public class MenuEngine implements Listener, MenuNavigation {
                                                 List<MenuItemDefinition> defs, Map<String, String> baseVars,
                                                 Map<String, String> extraVars) {
         List<MenuItemDefinition> sorted = defs.stream()
-                .sorted((a, b) -> Integer.compare(b.getPriority(), a.getPriority()))
+                .sorted((a, b) -> Integer.compare(a.getPriority(), b.getPriority()))
                 .collect(Collectors.toList());
 
         for (MenuItemDefinition def : sorted) {
@@ -468,4 +490,3 @@ public class MenuEngine implements Listener, MenuNavigation {
     }
 
 }
-

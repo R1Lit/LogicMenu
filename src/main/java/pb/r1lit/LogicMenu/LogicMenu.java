@@ -39,8 +39,14 @@ public final class LogicMenu extends JavaPlugin {
         menus.reload();
         getServer().getPluginManager().registerEvents(menus, this);
 
-        if (getCommand("pbg") != null) {
-            getCommand("pbg").setExecutor(new pb.r1lit.LogicMenu.command.ReloadCommand(this));
+        var router = new pb.r1lit.LogicMenu.command.CommandRouter(this);
+        if (getCommand("lm") != null) {
+            getCommand("lm").setExecutor(router);
+            getCommand("lm").setTabCompleter(router);
+        }
+        if (getCommand("logicmenu") != null) {
+            getCommand("logicmenu").setExecutor(router);
+            getCommand("logicmenu").setTabCompleter(router);
         }
 
         getLogger().info("LogicMenu enabled.");
@@ -58,7 +64,7 @@ public final class LogicMenu extends JavaPlugin {
         return api;
     }
 
-    private void loadExpansions() {
+    public void loadExpansions() {
         File expansions = new File(getDataFolder(), "expansions");
         if (!expansions.exists()) {
             expansions.mkdirs();

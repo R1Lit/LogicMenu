@@ -10,13 +10,40 @@ website: politblocks.ru
 softdepend:
   - PlaceholderAPI
 commands:
-  pbg:
-    description: LogicMenu main command
-    usage: /pbg reload
-    permission: pbg.reload
+  lm:
+    description: LogicMenu command
+    usage: /lm help
+    aliases: [logicmenu]
+    permission: logicmenu.use
 
 permissions:
-  pbg.reload:
-    description: Reload plugin config
+  logicmenu.use:
+    description: Access to /lm
     default: op
-
+  logicmenu.admin:
+    description: Full access to LogicMenu commands
+    default: op
+  logicmenu.reload:
+    description: Reload config and menus
+    default: op
+  logicmenu.open:
+    description: Open menu for player
+    default: op
+  logicmenu.list:
+    description: List loaded menus
+    default: op
+  logicmenu.dump:
+    description: Dump menu meta info
+    default: op
+  logicmenu.execute:
+    description: Execute an action string
+    default: op
+  logicmenu.validate:
+    description: Validate GUI files
+    default: op
+  logicmenu.expansions:
+    description: Manage expansions
+    default: op
+  logicmenu.meta:
+    description: Show meta info
+    default: op
