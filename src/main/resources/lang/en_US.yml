@@ -1,4 +1,4 @@
-﻿# LogicMenu messages (English)
+﻿
 log:
   enabled: "LogicMenu enabled."
   menus_loaded: "Menus loaded: {count}"
@@ -76,6 +76,14 @@ meta:
   gui_folder: "&7GUI folder: &f{path}"
   expansions_folder: "&7Expansions folder: &f{path}"
   placeholderapi: "&7PlaceholderAPI: &f{state}"
+  usage: "&cUsage: /logicmenu meta <set|get|remove|toggle|increment> <player|me> <key> [value]"
+  player_not_found: "&cPlayer not found."
+  set: "&aMeta set: {player} {key} = {value}"
+  get: "&eMeta: {player} {key} = {value}"
+  remove: "&aMeta removed: {player} {key}"
+  toggle: "&aMeta toggled: {player} {key} = {value}"
+  increment: "&aMeta incremented: {player} {key} = {value}"
+  invalid_delta: "&cInvalid number: {value}"
 
 menu:
   not_found: "&cMenu not found: {menu}"

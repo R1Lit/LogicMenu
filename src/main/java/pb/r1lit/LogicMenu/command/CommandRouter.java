@@ -27,6 +27,7 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
         register(new ValidateSubCommand(plugin));
         register(new ExpansionsSubCommand(plugin));
         register(new MetaSubCommand(plugin));
+        register(new InfoSubCommand(plugin));
     }
 
     private void register(LmSubCommand cmd) {

@@ -23,6 +23,7 @@ public final class LogicMenu extends JavaPlugin {
     private MenuEngine menus;
     private LogicMenuApi api;
     private pb.r1lit.LogicMenu.lang.Lang lang;
+    private pb.r1lit.LogicMenu.meta.MetaStore metaStore;
     private final java.util.Map<String, org.bukkit.command.Command> registeredCommands = new java.util.HashMap<>();
 
     @Override
@@ -37,6 +38,9 @@ public final class LogicMenu extends JavaPlugin {
         getServer().getServicesManager().register(LogicMenuApi.class, api, this, ServicePriority.Normal);
         lang = new pb.r1lit.LogicMenu.lang.Lang(this);
         lang.reload();
+        metaStore = new pb.r1lit.LogicMenu.meta.MetaStore(this);
+
+        registerMetaActions();
 
         loadExpansions(false);
 
@@ -75,6 +79,10 @@ public final class LogicMenu extends JavaPlugin {
 
     public pb.r1lit.LogicMenu.lang.Lang getLang() {
         return lang;
+    }
+
+    public pb.r1lit.LogicMenu.meta.MetaStore getMetaStore() {
+        return metaStore;
     }
 
     public int loadExpansions(boolean enableExisting) {
@@ -163,6 +171,57 @@ public final class LogicMenu extends JavaPlugin {
                         .replace("{name}", existing.getName()));
             }
         }
+    }
+
+    private void registerMetaActions() {
+        if (api == null || metaStore == null) return;
+        api.registerAction("META_SET", (player, current, action, vars) -> {
+            if (player == null) return;
+            String raw = action.getValue() == null ? "" : action.getValue().trim();
+            if (raw.isEmpty()) return;
+            String key;
+            String value;
+            int eq = raw.indexOf('=');
+            if (eq > 0) {
+                key = raw.substring(0, eq).trim();
+                value = raw.substring(eq + 1).trim();
+            } else {
+                String[] parts = raw.split("\\s+", 2);
+                key = parts[0].trim();
+                value = parts.length > 1 ? parts[1].trim() : "";
+            }
+            if (!key.isEmpty()) {
+                metaStore.set(player, key, value);
+            }
+        });
+
+        api.registerAction("META_REMOVE", (player, current, action, vars) -> {
+            if (player == null) return;
+            String key = action.getValue() == null ? "" : action.getValue().trim();
+            if (!key.isEmpty()) metaStore.remove(player, key);
+        });
+
+        api.registerAction("META_TOGGLE", (player, current, action, vars) -> {
+            if (player == null) return;
+            String key = action.getValue() == null ? "" : action.getValue().trim();
+            if (!key.isEmpty()) metaStore.toggle(player, key);
+        });
+
+        api.registerAction("META_INCREMENT", (player, current, action, vars) -> {
+            if (player == null) return;
+            String raw = action.getValue() == null ? "" : action.getValue().trim();
+            if (raw.isEmpty()) return;
+            String[] parts = raw.split("\\s+");
+            String key = parts[0].trim();
+            int delta = 1;
+            if (parts.length > 1) {
+                try {
+                    delta = Integer.parseInt(parts[1].trim());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            if (!key.isEmpty()) metaStore.increment(player, key, delta);
+        });
     }
 
     public void registerGuiCommands() {
