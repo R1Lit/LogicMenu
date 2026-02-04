@@ -35,12 +35,18 @@ public class MetaSubCommand implements LmSubCommand {
         File[] jars = expansions.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
         int expCount = jars == null ? 0 : jars.length;
 
-        sender.sendMessage("§eLogicMenu §f" + plugin.getDescription().getVersion());
-        sender.sendMessage("§7Menus: §f" + menus);
-        sender.sendMessage("§7Expansions: §f" + expCount);
-        sender.sendMessage("§7GUI folder: §f" + new File(plugin.getDataFolder(), "gui").getPath());
-        sender.sendMessage("§7Expansions folder: §f" + expansions.getPath());
-        sender.sendMessage("§7PlaceholderAPI: §f" + (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI") ? "enabled" : "disabled"));
+        sender.sendMessage(plugin.getLang().get("meta.header", "&eLogicMenu &f{version}")
+                .replace("{version}", plugin.getDescription().getVersion()));
+        sender.sendMessage(plugin.getLang().get("meta.menus", "&7Menus: &f{count}")
+                .replace("{count}", String.valueOf(menus)));
+        sender.sendMessage(plugin.getLang().get("meta.expansions", "&7Expansions: &f{count}")
+                .replace("{count}", String.valueOf(expCount)));
+        sender.sendMessage(plugin.getLang().get("meta.gui_folder", "&7GUI folder: &f{path}")
+                .replace("{path}", new File(plugin.getDataFolder(), "gui").getPath()));
+        sender.sendMessage(plugin.getLang().get("meta.expansions_folder", "&7Expansions folder: &f{path}")
+                .replace("{path}", expansions.getPath()));
+        sender.sendMessage(plugin.getLang().get("meta.placeholderapi", "&7PlaceholderAPI: &f{state}")
+                .replace("{state}", Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI") ? "enabled" : "disabled"));
         return true;
     }
 }

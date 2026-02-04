@@ -38,7 +38,24 @@ public class MenuAction {
             return new MenuAction(MenuActionType.CLOSE, "", Map.of());
         }
 
-        String[] parts = raw.split(":", 2);
+        String input = raw.trim();
+        Map<String, String> params = new HashMap<>();
+        while (input.startsWith("<")) {
+            int end = input.indexOf('>');
+            if (end <= 0) break;
+            String token = input.substring(1, end).trim();
+            int eq = token.indexOf('=');
+            if (eq > 0) {
+                String key = token.substring(0, eq).trim().toLowerCase();
+                String value = token.substring(eq + 1).trim();
+                if (!key.isEmpty() && !value.isEmpty()) {
+                    params.put("_" + key, value);
+                }
+            }
+            input = input.substring(end + 1).trim();
+        }
+
+        String[] parts = input.split(":", 2);
         MenuActionType type;
         String rawType = parts[0].trim();
         try {
@@ -48,7 +65,6 @@ public class MenuAction {
         }
         String value = parts.length > 1 ? parts[1].trim() : "";
 
-        Map<String, String> params = new HashMap<>();
         if (type == MenuActionType.CUSTOM) {
             params.put("_type", rawType.toUpperCase());
         }

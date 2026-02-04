@@ -2,7 +2,6 @@ package pb.r1lit.LogicMenu.gui.model;
 
 public enum MenuActionType {
     COMMAND,
-    TOWNY_COMMAND,
     CONSOLE_COMMAND,
     MESSAGE,
     ACTIONBAR,
@@ -16,11 +15,12 @@ public enum MenuActionType {
     TAKE_PERMISSION,
     GIVE_MONEY,
     TAKE_MONEY,
+    GIVE_EXP,
+    TAKE_EXP,
     CLOSE,
     BACK,
-    TOGGLE_FLAG,
     OPEN_MENU,
-    SET_TOWN_WAY,
+    BROADCAST_SOUND,
     CUSTOM
 }
 

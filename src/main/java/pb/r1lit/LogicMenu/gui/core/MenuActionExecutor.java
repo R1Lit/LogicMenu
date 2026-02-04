@@ -30,16 +30,11 @@ public class MenuActionExecutor {
 
     public void execute(Player player, MenuState current, MenuAction action, Map<String, String> vars) {
         if (action == null) return;
+        if (shouldSkipByChance(action)) return;
+        if (scheduleByDelay(player, current, action, vars)) return;
+
         switch (action.getType()) {
             case COMMAND -> player.performCommand(resolver.resolve(action.getValue(), player, vars));
-            case TOWNY_COMMAND, TOGGLE_FLAG, SET_TOWN_WAY -> {
-                LogicMenuApi api = plugin.getApi();
-                if (api == null) return;
-                LogicMenuApi.MenuActionHandler handler = api.getActionHandler(action.getTypeKey());
-                if (handler != null) {
-                    handler.execute(player, current, action, vars);
-                }
-            }
             case CONSOLE_COMMAND -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolver.resolve(action.getValue(), player, vars));
             case MESSAGE -> player.sendMessage(resolver.resolve(action.getValue(), player, vars));
             case ACTIONBAR -> player.sendActionBar(resolver.resolve(action.getValue(), player, vars));
@@ -62,6 +57,19 @@ public class MenuActionExecutor {
                 try {
                     Sound sound = Sound.valueOf(soundName.toUpperCase(Locale.ROOT));
                     player.playSound(player.getLocation(), sound, volume, pitch);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+            case BROADCAST_SOUND -> {
+                String[] parts = resolver.resolve(action.getValue(), player, vars).split(";");
+                String soundName = parts.length > 0 ? parts[0] : "UI_BUTTON_CLICK";
+                float volume = parts.length > 1 ? parseFloat(parts[1], 1.0f) : 1.0f;
+                float pitch = parts.length > 2 ? parseFloat(parts[2], 1.0f) : 1.0f;
+                try {
+                    Sound sound = Sound.valueOf(soundName.toUpperCase(Locale.ROOT));
+                    for (Player p : Bukkit.getOnlinePlayers()) {
+                        p.playSound(p.getLocation(), sound, volume, pitch);
+                    }
                 } catch (IllegalArgumentException ignored) {
                 }
             }
@@ -100,6 +108,22 @@ public class MenuActionExecutor {
                 Double amount = parseDouble(resolver.resolve(action.getValue(), player, vars));
                 if (amount != null) {
                     EconomyBridge.get().withdraw(player, amount);
+                }
+            }
+            case GIVE_EXP -> {
+                Integer amount = parseInt(resolver.resolve(action.getValue(), player, vars));
+                if (amount != null) {
+                    player.giveExp(amount);
+                }
+            }
+            case TAKE_EXP -> {
+                Integer amount = parseInt(resolver.resolve(action.getValue(), player, vars));
+                if (amount != null) {
+                    int newExp = Math.max(0, player.getTotalExperience() - amount);
+                    player.setTotalExperience(0);
+                    player.setLevel(0);
+                    player.setExp(0);
+                    player.giveExp(newExp);
                 }
             }
             case CLOSE -> player.closeInventory();
@@ -158,5 +182,36 @@ public class MenuActionExecutor {
             return null;
         }
     }
-}
 
+    private Integer parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private boolean shouldSkipByChance(MenuAction action) {
+        String chanceRaw = action.getParams().get("_chance");
+        if (chanceRaw == null || chanceRaw.isBlank()) return false;
+        Double chance = parseDouble(chanceRaw);
+        if (chance == null) return false;
+        if (chance >= 100.0) return false;
+        if (chance <= 0.0) return true;
+        double roll = Math.random() * 100.0;
+        return roll > chance;
+    }
+
+    private boolean scheduleByDelay(Player player, MenuState current, MenuAction action, Map<String, String> vars) {
+        String delayRaw = action.getParams().get("_delay");
+        if (delayRaw == null || delayRaw.isBlank()) return false;
+        if ("true".equalsIgnoreCase(action.getParams().get("_delay_applied"))) return false;
+        Integer delay = parseInt(delayRaw);
+        if (delay == null || delay <= 0) return false;
+        Map<String, String> newParams = new HashMap<>(action.getParams());
+        newParams.put("_delay_applied", "true");
+        MenuAction delayed = new MenuAction(action.getType(), action.getValue(), newParams);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> execute(player, current, delayed, vars), delay);
+        return true;
+    }
+}

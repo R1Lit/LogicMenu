@@ -49,6 +49,7 @@ public class MenuEngine implements Listener, MenuNavigation {
     private final Map<String, MenuDynamicProvider> providers = new HashMap<>();
     private final Map<UUID, Deque<MenuState>> history = new HashMap<>();
     private final Map<String, String> openCommandIndex = new HashMap<>();
+    private final Map<String, String> pathIndex = new HashMap<>();
     private LogicMenuApi api;
     private final MenuTextResolver resolver = new MenuTextResolver();
     private final MenuItemFactory itemFactory = new MenuItemFactory(resolver);
@@ -126,11 +127,13 @@ public class MenuEngine implements Listener, MenuNavigation {
     public void reload() {
         menus.clear();
         openCommandIndex.clear();
+        pathIndex.clear();
         menus.putAll(loadFromFiles());
         if (menus.isEmpty()) {
             FileConfiguration config = plugin.getConfig();
             menus.putAll(loader.load(config));
         }
+        indexGuiCommandAliases();
         for (MenuDefinition def : menus.values()) {
             if (def.getOpenCommands() == null) continue;
             for (String cmd : def.getOpenCommands()) {
@@ -142,7 +145,8 @@ public class MenuEngine implements Listener, MenuNavigation {
 
     public String resolveMenuId(String menuOrCommand) {
         if (menuOrCommand == null) return null;
-        String key = menuOrCommand.toLowerCase(Locale.ROOT);
+        String key = normalizeMenuKey(menuOrCommand);
+        if (pathIndex.containsKey(key)) return pathIndex.get(key);
         if (menus.containsKey(key)) return key;
         return openCommandIndex.getOrDefault(key, key);
     }
@@ -152,15 +156,38 @@ public class MenuEngine implements Listener, MenuNavigation {
         File folder = new File(plugin.getDataFolder(), "gui");
         if (!folder.exists() || !folder.isDirectory()) return result;
 
-        File[] files = folder.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files == null) return result;
+        List<File> files = new ArrayList<>();
+        collectYamlFiles(folder, files);
+        if (files.isEmpty()) return result;
 
         for (File file : files) {
-            String id = file.getName().replace(".yml", "");
+            String relPath = toRelativePath(folder, file);
+            if (relPath == null) continue;
+            String id = stripYamlExtension(relPath);
             FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
             result.putAll(loader.loadSingle(cfg, id));
+            String relKey = normalizeMenuKey(relPath);
+            String idKey = normalizeMenuKey(id);
+            pathIndex.put(relKey, id);
+            pathIndex.put(idKey, id);
         }
         return result;
+    }
+
+    private void indexGuiCommandAliases() {
+        FileConfiguration cfg = plugin.getConfig();
+        if (cfg == null) return;
+        var section = cfg.getConfigurationSection("gui-commands");
+        if (section == null) return;
+        for (String key : section.getKeys(false)) {
+            var cmdSec = section.getConfigurationSection(key);
+            if (cmdSec == null) continue;
+            String menu = cmdSec.getString("menu", "");
+            if (menu == null || menu.isBlank()) continue;
+            String menuKey = normalizeMenuKey(menu);
+            String id = pathIndex.getOrDefault(menuKey, menuKey);
+            pathIndex.put(normalizeMenuKey(key), id);
+        }
     }
 
     public void openMenu(Player player, String menuId) {
@@ -173,15 +200,18 @@ public class MenuEngine implements Listener, MenuNavigation {
 
     @Override
     public void openMenu(Player player, String menuId, int page, Map<String, String> vars, boolean pushHistory, MenuState current) {
-        MenuDefinition menu = menus.get(menuId);
+        String resolvedId = resolveMenuId(menuId);
+        if (resolvedId == null) resolvedId = menuId;
+        MenuDefinition menu = menus.get(resolvedId);
         if (menu == null) {
-            player.sendMessage(ChatColor.RED + "Menu not found: " + menuId);
+            player.sendMessage(plugin.getLang().get("menu.not_found", "&cMenu not found: {menu}")
+                    .replace("{menu}", menuId));
             return;
         }
 
         if (menu.getPermission() != null && !menu.getPermission().isBlank()) {
             if (!player.hasPermission(menu.getPermission())) {
-                player.sendMessage(ChatColor.RED + "No access.");
+                player.sendMessage(plugin.getLang().get("menu.no_access", "&cNo access."));
                 return;
             }
         }
@@ -198,7 +228,7 @@ public class MenuEngine implements Listener, MenuNavigation {
             history.computeIfAbsent(player.getUniqueId(), k -> new ArrayDeque<>()).push(current);
         }
 
-        MenuState state = new MenuState(menuId, page, vars);
+        MenuState state = new MenuState(resolvedId, page, vars);
         MenuHolder holder = new MenuHolder(state);
 
         renderMenu(player, menu, holder);
@@ -487,6 +517,43 @@ public class MenuEngine implements Listener, MenuNavigation {
         if (click == ClickType.DROP) return "drop";
         if (click == ClickType.NUMBER_KEY) return "hotbar";
         return "left";
+    }
+
+    private void collectYamlFiles(File dir, List<File> out) {
+        File[] children = dir.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (child.isDirectory()) {
+                collectYamlFiles(child, out);
+            } else if (child.getName().toLowerCase(Locale.ROOT).endsWith(".yml")) {
+                out.add(child);
+            }
+        }
+    }
+
+    private String toRelativePath(File root, File file) {
+        try {
+            String rel = root.toPath().relativize(file.toPath()).toString();
+            return rel.replace('\\', '/');
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String stripYamlExtension(String path) {
+        if (path == null) return null;
+        String lower = path.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".yml")) {
+            return path.substring(0, path.length() - 4);
+        }
+        return path;
+    }
+
+    private String normalizeMenuKey(String key) {
+        if (key == null) return null;
+        String out = key.trim().replace('\\', '/');
+        if (out.startsWith("./")) out = out.substring(2);
+        return out.toLowerCase(Locale.ROOT);
     }
 
 }

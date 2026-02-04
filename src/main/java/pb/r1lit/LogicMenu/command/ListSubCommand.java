@@ -3,8 +3,6 @@ package pb.r1lit.LogicMenu.command;
 import org.bukkit.command.CommandSender;
 import pb.r1lit.LogicMenu.LogicMenu;
 
-import java.util.List;
-
 public class ListSubCommand implements LmSubCommand {
     private final LogicMenu plugin;
 
@@ -30,14 +28,16 @@ public class ListSubCommand implements LmSubCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (plugin.getMenus() == null) {
-            sender.sendMessage("§cMenu engine is not loaded.");
+            sender.sendMessage(plugin.getLang().get("list.menu_engine_missing", "&cMenu engine is not loaded."));
             return true;
         }
-        List<String> ids = plugin.getMenus().getMenuIds();
-        ids.sort(String::compareToIgnoreCase);
-        sender.sendMessage("§eLoaded menus: §f" + ids.size());
+
+        var ids = plugin.getMenus().getMenuIds();
+        sender.sendMessage(plugin.getLang().get("list.loaded", "&eLoaded menus: &f{count}")
+                .replace("{count}", String.valueOf(ids.size())));
         if (!ids.isEmpty()) {
-            sender.sendMessage("§7" + String.join(", ", ids));
+            sender.sendMessage(plugin.getLang().get("list.items", "&7{list}")
+                    .replace("{list}", String.join(", ", ids)));
         }
         return true;
     }

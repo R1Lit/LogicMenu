@@ -45,10 +45,14 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
         return list;
     }
 
+    public LogicMenu getPlugin() {
+        return plugin;
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("logicmenu.use") && !sender.hasPermission("logicmenu.admin")) {
-            sender.sendMessage("§cNo permission.");
+            sender.sendMessage(plugin.getLang().get("command.no_permission", "&cNo permission."));
             return true;
         }
         if (args.length == 0) {
@@ -57,12 +61,13 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
         String sub = args[0].toLowerCase(Locale.ROOT);
         LmSubCommand cmd = commands.get(sub);
         if (cmd == null) {
-            sender.sendMessage("§cUnknown subcommand. Use /" + label + " help.");
+            sender.sendMessage(plugin.getLang().get("command.unknown_subcommand", "&cUnknown subcommand. Use /{label} help.")
+                    .replace("{label}", label));
             return true;
         }
         String perm = cmd.permission();
         if (perm != null && !perm.isBlank() && !sender.hasPermission(perm)) {
-            sender.sendMessage("§cNo permission.");
+            sender.sendMessage(plugin.getLang().get("command.no_permission", "&cNo permission."));
             return true;
         }
         String[] rest = new String[args.length - 1];

@@ -15,21 +15,26 @@ public class HelpCommand implements LmSubCommand {
     }
 
     @Override
+    public String permission() {
+        return "logicmenu.help";
+    }
+
+    @Override
     public String description() {
-        return "Show all subcommands";
+        return "Show help";
     }
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        sender.sendMessage("§eLogicMenu commands:");
-        for (LmSubCommand cmd : router.uniqueCommands()) {
-            String line = "§6/logicmenu " + cmd.name();
-            if (!cmd.usage().isBlank()) {
-                line += " §7" + cmd.usage();
-            }
-            if (!cmd.description().isBlank()) {
-                line += " §f- " + cmd.description();
-            }
+        var plugin = router.getPlugin();
+        sender.sendMessage(plugin.getLang().get("help.header", "&eLogicMenu commands:"));
+        for (LmSubCommand sub : router.uniqueCommands()) {
+            if (sub.permission() != null && !sub.permission().isBlank() && !sender.hasPermission(sub.permission())) continue;
+            String line = plugin.getLang().get("help.line", "&7/{label} {name} {usage} &f- {desc}")
+                    .replace("{label}", "logicmenu")
+                    .replace("{name}", sub.name())
+                    .replace("{usage}", sub.usage() == null ? "" : sub.usage())
+                    .replace("{desc}", sub.description() == null ? "" : sub.description());
             sender.sendMessage(line);
         }
         return true;

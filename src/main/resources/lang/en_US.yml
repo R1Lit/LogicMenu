@@ -1,0 +1,82 @@
+﻿# LogicMenu messages (English)
+log:
+  enabled: "LogicMenu enabled."
+  menus_loaded: "Menus loaded: {count}"
+  expansion_disabled: "Expansion disabled: {name}"
+  expansion_enabled: "Expansion enabled: {name}"
+  expansion_duplicate: "Expansion already loaded (duplicate): {name}"
+  expansion_loaded: "Expansion loaded: {name}"
+  expansion_failed: "Failed to load expansion {file}: {error}"
+  commandmap_missing: "Cannot register gui-commands: CommandMap not available."
+  gui_commands_skip: "gui-commands: skip {key} type={type} (handled by expansion)"
+
+command:
+  no_permission: "&cNo permission."
+  unknown_subcommand: "&cUnknown subcommand. Use /{label} help."
+
+reload:
+  started: "&eLogicMenu reload started..."
+  done: "&aLogicMenu reloaded."
+  failed: "&cReload failed: {error}"
+
+help:
+  header: "&eLogicMenu commands:"
+  line: "&7/{label} {name} {usage} &f- {desc}"
+
+open:
+  usage: "&cUsage: /logicmenu open <menu|alias> [player] [page]"
+  menu_engine_missing: "&cMenu engine is not loaded."
+  player_not_found: "&cPlayer not found."
+  opened: "&aOpened menu: {menu} for {player}"
+
+list:
+  menu_engine_missing: "&cMenu engine is not loaded."
+  loaded: "&eLoaded menus: &f{count}"
+  items: "&7{list}"
+
+dump:
+  usage: "&cUsage: /logicmenu dump <menu|alias>"
+  menu_engine_missing: "&cMenu engine is not loaded."
+  menu_not_found: "&cMenu not found: {menu}"
+  menu: "&eMenu: &f{menu}"
+  title: "&7Title: &f{title}"
+  size: "&7Size: &f{size}"
+  items: "&7Items: &f{count}"
+  fill: "&7Fill item: &f{value}"
+  open_commands: "&7Open commands: &f{count}"
+  dynamic: "&7Dynamic: &f{value}"
+  dynamics: "&7Dynamics: &f{count}"
+  permission: "&7Permission: &f{perm}"
+  update: "&7Update: &f{value} ({ticks} ticks)"
+
+execute:
+  usage: "&cUsage: /logicmenu execute <action> [player]"
+  menu_engine_missing: "&cMenu engine is not loaded."
+  player_not_found: "&cPlayer not found."
+  executed: "&aExecuted action for {player}: {action}"
+
+validate:
+  gui_folder_missing: "&cGUI folder not found: {path}"
+  no_files: "&eNo GUI files found."
+  ok: "&aAll GUI files are valid."
+  errors: "&cFound errors: {count}"
+  error_item: "&7- {error}"
+
+expansions:
+  path: "&eExpansions folder: &f{path}"
+  reload: "&aExpansion scan complete. Loaded: &f{count}"
+  none: "&eNo expansions found."
+  count: "&eExpansions: &f{count}"
+  item: "&7- {name} &8({file}) &f{state}"
+
+meta:
+  header: "&eLogicMenu &f{version}"
+  menus: "&7Menus: &f{count}"
+  expansions: "&7Expansions: &f{count}"
+  gui_folder: "&7GUI folder: &f{path}"
+  expansions_folder: "&7Expansions folder: &f{path}"
+  placeholderapi: "&7PlaceholderAPI: &f{state}"
+
+menu:
+  not_found: "&cMenu not found: {menu}"
+  no_access: "&cNo access."

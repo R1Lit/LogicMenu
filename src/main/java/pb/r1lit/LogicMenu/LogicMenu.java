@@ -22,6 +22,8 @@ public final class LogicMenu extends JavaPlugin {
     private static LogicMenu instance;
     private MenuEngine menus;
     private LogicMenuApi api;
+    private pb.r1lit.LogicMenu.lang.Lang lang;
+    private final java.util.Map<String, org.bukkit.command.Command> registeredCommands = new java.util.HashMap<>();
 
     @Override
     public void onEnable() {
@@ -33,11 +35,18 @@ public final class LogicMenu extends JavaPlugin {
         api = new LogicMenuApiImpl(menus);
         menus.setApi(api);
         getServer().getServicesManager().register(LogicMenuApi.class, api, this, ServicePriority.Normal);
+        lang = new pb.r1lit.LogicMenu.lang.Lang(this);
+        lang.reload();
 
-        loadExpansions();
+        loadExpansions(false);
 
         menus.reload();
+        getLogger().info(lang.get("log.menus_loaded", "Menus loaded: {count}")
+                .replace("{count}", String.valueOf(menus.getMenuCount())));
         getServer().getPluginManager().registerEvents(menus, this);
+        getServer().getPluginManager().registerEvents(new pb.r1lit.LogicMenu.listener.DefCommandOpenListener(this, api), this);
+
+        registerGuiCommands();
 
         var router = new pb.r1lit.LogicMenu.command.CommandRouter(this);
         if (getCommand("lm") != null) {
@@ -49,7 +58,7 @@ public final class LogicMenu extends JavaPlugin {
             getCommand("logicmenu").setTabCompleter(router);
         }
 
-        getLogger().info("LogicMenu enabled.");
+        getLogger().info(lang.get("log.enabled", "LogicMenu enabled."));
     }
 
     public static LogicMenu getInstance() {
@@ -64,37 +73,60 @@ public final class LogicMenu extends JavaPlugin {
         return api;
     }
 
-    public void loadExpansions() {
+    public pb.r1lit.LogicMenu.lang.Lang getLang() {
+        return lang;
+    }
+
+    public int loadExpansions(boolean enableExisting) {
         File expansions = new File(getDataFolder(), "expansions");
         if (!expansions.exists()) {
             expansions.mkdirs();
         }
 
         File[] jars = expansions.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
-        if (jars == null || jars.length == 0) return;
+        if (jars == null || jars.length == 0) return 0;
 
         Arrays.sort(jars, Comparator.comparing(File::getName, String.CASE_INSENSITIVE_ORDER));
 
         PluginManager pm = getServer().getPluginManager();
+        int loadedCount = 0;
         for (File jar : jars) {
             try {
                 Optional<String> name = readPluginName(jar);
-                if (name.isPresent() && pm.getPlugin(name.get()) != null) {
-                    getLogger().warning("Expansion already loaded (duplicate): " + name.get());
-                    continue;
+                if (name.isPresent()) {
+                    Plugin existing = pm.getPlugin(name.get());
+                    if (existing != null) {
+                        if (enableExisting && !existing.isEnabled()) {
+                            pm.enablePlugin(existing);
+                            getLogger().info(lang.get("log.expansion_enabled", "Expansion enabled: {name}")
+                                    .replace("{name}", existing.getName()));
+                            loadedCount++;
+                        } else {
+                            getLogger().warning(lang.get("log.expansion_duplicate", "Expansion already loaded (duplicate): {name}")
+                                    .replace("{name}", name.get()));
+                        }
+                        continue;
+                    }
                 }
                 Plugin loaded = pm.loadPlugin(jar);
                 if (loaded == null) continue;
                 if (!loaded.isEnabled()) {
                     pm.enablePlugin(loaded);
                 }
-                getLogger().info("Expansion loaded: " + loaded.getName());
+                getLogger().info(lang.get("log.expansion_loaded", "Expansion loaded: {name}")
+                        .replace("{name}", loaded.getName()));
+                loadedCount++;
             } catch (InvalidPluginException | UnknownDependencyException e) {
-                getLogger().warning("Failed to load expansion " + jar.getName() + ": " + e.getMessage());
+                getLogger().warning(lang.get("log.expansion_failed", "Failed to load expansion {file}: {error}")
+                        .replace("{file}", jar.getName())
+                        .replace("{error}", e.getMessage()));
             } catch (Exception e) {
-                getLogger().warning("Failed to load expansion " + jar.getName() + ": " + e.getMessage());
+                getLogger().warning(lang.get("log.expansion_failed", "Failed to load expansion {file}: {error}")
+                        .replace("{file}", jar.getName())
+                        .replace("{error}", e.getMessage()));
             }
         }
+        return loadedCount;
     }
 
     private Optional<String> readPluginName(File jar) {
@@ -108,6 +140,138 @@ public final class LogicMenu extends JavaPlugin {
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    public int reloadExpansions() {
+        disableLoadedExpansions();
+        return loadExpansions(true);
+    }
+
+    private void disableLoadedExpansions() {
+        File expansions = new File(getDataFolder(), "expansions");
+        if (!expansions.exists()) return;
+        File[] jars = expansions.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
+        if (jars == null || jars.length == 0) return;
+        PluginManager pm = getServer().getPluginManager();
+        for (File jar : jars) {
+            Optional<String> name = readPluginName(jar);
+            if (name.isEmpty()) continue;
+            Plugin existing = pm.getPlugin(name.get());
+            if (existing != null && existing.isEnabled()) {
+                pm.disablePlugin(existing);
+                getLogger().info(lang.get("log.expansion_disabled", "Expansion disabled: {name}")
+                        .replace("{name}", existing.getName()));
+            }
+        }
+    }
+
+    public void registerGuiCommands() {
+        var cfg = getConfig();
+        var section = cfg.getConfigurationSection("gui-commands");
+        if (section == null) return;
+
+        var map = getCommandMap();
+        if (map == null) {
+            getLogger().warning(lang.get("log.commandmap_missing", "Cannot register gui-commands: CommandMap not available."));
+            return;
+        }
+
+        for (String key : section.getKeys(false)) {
+            var cmdSec = section.getConfigurationSection(key);
+            if (cmdSec == null) continue;
+
+            String typeRaw = cmdSec.getString("type", "DEF");
+            String type = typeRaw == null ? "DEF" : typeRaw.toUpperCase(java.util.Locale.ROOT);
+            if (!"DEF".equals(type)) {
+                getLogger().info(lang.get("log.gui_commands_skip", "gui-commands: skip {key} type={type} (handled by expansion)")
+                        .replace("{key}", key)
+                        .replace("{type}", type));
+                continue;
+            }
+
+            java.util.List<String> commands = new java.util.ArrayList<>();
+            Object rawCommands = cmdSec.get("commands");
+            if (rawCommands instanceof java.util.List<?> list) {
+                for (Object c : list) {
+                    if (c == null) continue;
+                    String value = String.valueOf(c).trim();
+                    if (!value.isBlank()) commands.add(value.toLowerCase(java.util.Locale.ROOT));
+                }
+            } else {
+                String commandsRaw = cmdSec.getString("commands", "");
+                if (commandsRaw != null && !commandsRaw.isBlank()) {
+                    for (String part : commandsRaw.split(",")) {
+                        String value = part.trim();
+                        if (!value.isBlank()) commands.add(value.toLowerCase(java.util.Locale.ROOT));
+                    }
+                }
+                String command = cmdSec.getString("command", key);
+                if (command != null && !command.isBlank()) commands.add(command.toLowerCase(java.util.Locale.ROOT));
+            }
+            if (commands.isEmpty()) continue;
+
+            String menuId = cmdSec.getString("menu", "");
+            if (menuId == null || menuId.isBlank()) continue;
+
+            boolean ignoreArgs = cmdSec.getBoolean("ignoreargs", false);
+            String permission = cmdSec.getString("permission", "");
+            if (ignoreArgs) {
+                for (String command : commands) {
+                    registerDefCommand(map, command, permission, menuId);
+                }
+            }
+        }
+    }
+
+    private void registerDefCommand(org.bukkit.command.CommandMap map, String commandName, String permission, String menuId) {
+        if (commandName == null || commandName.isBlank()) return;
+
+        org.bukkit.command.Command existing = map.getCommand(commandName);
+        if (existing instanceof org.bukkit.command.PluginCommand pluginCommand) {
+            if (pluginCommand.getPlugin() == this) {
+                pluginCommand.setExecutor((sender, command, label, args) -> {
+                    if (!(sender instanceof org.bukkit.entity.Player player)) return false;
+                    if (permission != null && !permission.isBlank() && !player.hasPermission(permission)) {
+                        player.sendMessage(lang.get("command.no_permission", "&cNo permission."));
+                        return true;
+                    }
+                    api.openMenu(player, menuId, 0);
+                    return true;
+                });
+                return;
+            }
+        }
+
+        org.bukkit.command.Command dynamic = registeredCommands.get(commandName);
+        if (dynamic == null) {
+            dynamic = new org.bukkit.command.Command(commandName) {
+                @Override
+                public boolean execute(org.bukkit.command.CommandSender sender, String label, String[] args) {
+                    if (!(sender instanceof org.bukkit.entity.Player player)) return false;
+                    if (permission != null && !permission.isBlank() && !player.hasPermission(permission)) {
+                        player.sendMessage(lang.get("command.no_permission", "&cNo permission."));
+                        return true;
+                    }
+                    api.openMenu(player, menuId, 0);
+                    return true;
+                }
+            };
+            if (permission != null && !permission.isBlank()) {
+                dynamic.setPermission(permission);
+            }
+            map.register(getDescription().getName(), dynamic);
+            registeredCommands.put(commandName, dynamic);
+        }
+    }
+
+    private org.bukkit.command.CommandMap getCommandMap() {
+        try {
+            var method = getServer().getClass().getMethod("getCommandMap");
+            Object result = method.invoke(getServer());
+            if (result instanceof org.bukkit.command.CommandMap map) return map;
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
 }

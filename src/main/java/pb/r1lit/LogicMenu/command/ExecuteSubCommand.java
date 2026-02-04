@@ -4,10 +4,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pb.r1lit.LogicMenu.LogicMenu;
-import pb.r1lit.LogicMenu.gui.model.MenuAction;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class ExecuteSubCommand implements LmSubCommand {
     private final LogicMenu plugin;
@@ -28,59 +24,48 @@ public class ExecuteSubCommand implements LmSubCommand {
 
     @Override
     public String description() {
-        return "Execute one action string";
-    }
-
-    @Override
-    public String usage() {
-        return "<action> [player]";
+        return "Execute raw action";
     }
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length < 1) {
-            sender.sendMessage("§cUsage: /logicmenu execute <action> [player]");
+            sender.sendMessage(plugin.getLang().get("execute.usage", "&cUsage: /logicmenu execute <action> [player]"));
             return true;
         }
         if (plugin.getMenus() == null) {
-            sender.sendMessage("§cMenu engine is not loaded.");
+            sender.sendMessage(plugin.getLang().get("execute.menu_engine_missing", "&cMenu engine is not loaded."));
             return true;
         }
 
-        String actionRaw;
         Player target = null;
-        if (args.length >= 2) {
-            Player p = Bukkit.getPlayerExact(args[args.length - 1]);
-            if (p != null) {
-                target = p;
-                actionRaw = joinArgs(args, 0, args.length - 1);
+        String actionRaw;
+        if (args.length > 1) {
+            Player last = Bukkit.getPlayerExact(args[args.length - 1]);
+            if (last != null) {
+                target = last;
+                actionRaw = String.join(" ", java.util.Arrays.copyOf(args, args.length - 1));
             } else {
-                actionRaw = joinArgs(args, 0, args.length);
+                actionRaw = String.join(" ", args);
             }
         } else {
             actionRaw = args[0];
         }
 
+        if (target == null && sender instanceof Player player) {
+            target = player;
+        }
         if (target == null) {
-            if (sender instanceof Player sp) {
-                target = sp;
-            } else {
-                sender.sendMessage("§cPlayer not found.");
-                return true;
-            }
+            sender.sendMessage(plugin.getLang().get("execute.player_not_found", "&cPlayer not found."));
+            return true;
         }
 
-        MenuAction action = MenuAction.parse(actionRaw);
-        plugin.getMenus().executeAction(target, action, plugin.getMenus().createBaseVars(target));
-        sender.sendMessage("§aExecuted action for " + target.getName() + ": " + actionRaw);
+        var action = pb.r1lit.LogicMenu.gui.model.MenuAction.parse(actionRaw);
+
+        plugin.getMenus().executeAction(target, action, java.util.Map.of());
+        sender.sendMessage(plugin.getLang().get("execute.executed", "&aExecuted action for {player}: {action}")
+                .replace("{player}", target.getName())
+                .replace("{action}", actionRaw));
         return true;
-    }
-
-    private String joinArgs(String[] args, int start, int end) {
-        List<String> parts = new ArrayList<>();
-        for (int i = start; i < end; i++) {
-            parts.add(args[i]);
-        }
-        return String.join(" ", parts);
     }
 }

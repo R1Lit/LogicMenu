@@ -27,7 +27,7 @@ public class ReloadSubCommand implements LmSubCommand {
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        sender.sendMessage("§eLogicMenu reload started...");
+        sender.sendMessage(plugin.getLang().get("reload.started", "&eLogicMenu reload started..."));
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             try {
                 // Close open menus to avoid stale holders
@@ -38,14 +38,19 @@ public class ReloadSubCommand implements LmSubCommand {
                 });
 
                 plugin.reloadConfig();
+                plugin.getLang().reload();
+                plugin.registerGuiCommands();
                 if (plugin.getMenus() != null) {
                     plugin.getMenus().reload();
+                    plugin.getLogger().info(plugin.getLang().get("log.menus_loaded", "Menus loaded: {count}")
+                            .replace("{count}", String.valueOf(plugin.getMenus().getMenuCount())));
                 }
                 // Re-scan expansions if needed
-                plugin.loadExpansions();
-                sender.sendMessage("§aLogicMenu reloaded.");
+                plugin.reloadExpansions();
+                sender.sendMessage(plugin.getLang().get("reload.done", "&aLogicMenu reloaded."));
             } catch (Exception e) {
-                sender.sendMessage("§cReload failed: " + e.getMessage());
+                sender.sendMessage(plugin.getLang().get("reload.failed", "&cReload failed: {error}")
+                        .replace("{error}", e.getMessage()));
             }
         });
         return true;

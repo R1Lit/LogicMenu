@@ -43,25 +43,31 @@ public class ExpansionsSubCommand implements LmSubCommand {
 
         switch (sub) {
             case "path":
-                sender.sendMessage("§eExpansions folder: §f" + folder.getPath());
+                sender.sendMessage(plugin.getLang().get("expansions.path", "&eExpansions folder: &f{path}")
+                        .replace("{path}", folder.getPath()));
                 return true;
             case "reload":
-                plugin.loadExpansions();
-                sender.sendMessage("§aExpansion scan complete.");
+                int loaded = plugin.reloadExpansions();
+                sender.sendMessage(plugin.getLang().get("expansions.reload", "&aExpansion scan complete. Loaded: &f{count}")
+                        .replace("{count}", String.valueOf(loaded)));
                 return true;
             case "list":
             default:
                 File[] jars = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
                 if (jars == null || jars.length == 0) {
-                    sender.sendMessage("§eNo expansions found.");
+                    sender.sendMessage(plugin.getLang().get("expansions.none", "&eNo expansions found."));
                     return true;
                 }
-                sender.sendMessage("§eExpansions: §f" + jars.length);
+                sender.sendMessage(plugin.getLang().get("expansions.count", "&eExpansions: &f{count}")
+                        .replace("{count}", String.valueOf(jars.length)));
                 for (File jar : jars) {
                     Optional<String> name = PluginJarUtil.readPluginName(jar);
                     String pluginName = name.orElse(jar.getName());
-                    boolean loaded = Bukkit.getPluginManager().getPlugin(pluginName) != null;
-                    sender.sendMessage("§7- " + pluginName + " §8(" + jar.getName() + ") §f" + (loaded ? "§aLOADED" : "§cNOT LOADED"));
+                    boolean loadedFlag = Bukkit.getPluginManager().getPlugin(pluginName) != null;
+                    sender.sendMessage(plugin.getLang().get("expansions.item", "&7- {name} &8({file}) &f{state}")
+                            .replace("{name}", pluginName)
+                            .replace("{file}", jar.getName())
+                            .replace("{state}", loadedFlag ? "&aLOADED" : "&cNOT LOADED"));
                 }
                 return true;
         }

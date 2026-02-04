@@ -38,11 +38,11 @@ public class OpenSubCommand implements LmSubCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length < 1) {
-            sender.sendMessage("§cUsage: /logicmenu open <menu|alias> [player] [page]");
+            sender.sendMessage(plugin.getLang().get("open.usage", "&cUsage: /logicmenu open <menu|alias> [player] [page]"));
             return true;
         }
         if (plugin.getMenus() == null) {
-            sender.sendMessage("§cMenu engine is not loaded.");
+            sender.sendMessage(plugin.getLang().get("open.menu_engine_missing", "&cMenu engine is not loaded."));
             return true;
         }
 
@@ -69,12 +69,14 @@ public class OpenSubCommand implements LmSubCommand {
         }
 
         if (target == null) {
-            sender.sendMessage("§cPlayer not found.");
+            sender.sendMessage(plugin.getLang().get("open.player_not_found", "&cPlayer not found."));
             return true;
         }
 
         plugin.getMenus().openMenu(target, menuId, page);
-        sender.sendMessage("§aOpened menu: " + menuId + " for " + target.getName());
+        sender.sendMessage(plugin.getLang().get("open.opened", "&aOpened menu: {menu} for {player}")
+                .replace("{menu}", menuId)
+                .replace("{player}", target.getName()));
         return true;
     }
 
