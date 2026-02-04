@@ -25,7 +25,6 @@ import pb.r1lit.LogicMenu.gui.model.MenuHolder;
 import pb.r1lit.LogicMenu.gui.model.MenuItemDefinition;
 import pb.r1lit.LogicMenu.gui.model.MenuRequirementGroup;
 import pb.r1lit.LogicMenu.gui.model.MenuState;
-import pb.r1lit.LogicMenu.gui.service.EconomyBridge;
 import pb.r1lit.LogicMenu.gui.service.MenuConditionService;
 import pb.r1lit.LogicMenu.gui.service.MenuItemFactory;
 import pb.r1lit.LogicMenu.gui.service.MenuRequirementService;
@@ -486,10 +485,6 @@ public class MenuEngine implements Listener, MenuNavigation {
         vars.put("page_index", String.valueOf(page));
         vars.put("page_next", String.valueOf(page + 2));
         vars.put("page_prev", String.valueOf(Math.max(1, page)));
-        Double bal = EconomyBridge.get().getBalance(player);
-        if (bal != null) {
-            vars.put("balance", String.valueOf(bal));
-        }
         if (api != null) {
             api.applyVars(player, vars);
         }

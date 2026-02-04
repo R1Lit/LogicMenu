@@ -9,9 +9,7 @@ import pb.r1lit.LogicMenu.LogicMenu;
 import pb.r1lit.LogicMenu.gui.model.MenuAction;
 import pb.r1lit.LogicMenu.gui.model.MenuState;
 import pb.r1lit.LogicMenu.api.LogicMenuApi;
-import pb.r1lit.LogicMenu.gui.service.EconomyBridge;
 import pb.r1lit.LogicMenu.gui.service.MenuTextResolver;
-import pb.r1lit.LogicMenu.gui.service.PermissionBridge;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -90,26 +88,6 @@ public class MenuActionExecutor {
                 }
             }
             case PLACEHOLDER -> resolver.resolve(action.getValue(), player, vars);
-            case GIVE_PERMISSION -> {
-                String perm = resolver.resolve(action.getValue(), player, vars);
-                PermissionBridge.get().add(player, perm);
-            }
-            case TAKE_PERMISSION -> {
-                String perm = resolver.resolve(action.getValue(), player, vars);
-                PermissionBridge.get().remove(player, perm);
-            }
-            case GIVE_MONEY -> {
-                Double amount = parseDouble(resolver.resolve(action.getValue(), player, vars));
-                if (amount != null) {
-                    EconomyBridge.get().deposit(player, amount);
-                }
-            }
-            case TAKE_MONEY -> {
-                Double amount = parseDouble(resolver.resolve(action.getValue(), player, vars));
-                if (amount != null) {
-                    EconomyBridge.get().withdraw(player, amount);
-                }
-            }
             case GIVE_EXP -> {
                 Integer amount = parseInt(resolver.resolve(action.getValue(), player, vars));
                 if (amount != null) {

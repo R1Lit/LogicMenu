@@ -92,14 +92,6 @@ public class MenuRequirementService {
                 String perm = String.valueOf(opt.getOrDefault("permission", ""));
                 return player.hasPermission(perm);
             }
-            case "has money":
-            case "has_money":
-            case "money": {
-                String raw = resolver.resolve(String.valueOf(opt.getOrDefault("amount", "0")), player, vars);
-                Double parsed = parseDouble(raw);
-                double amount = parsed != null ? parsed : 0.0;
-                return EconomyBridge.get().has(player, amount);
-            }
             case "has item":
             case "has_item": {
                 String matName = String.valueOf(opt.getOrDefault("material", ""));
@@ -281,4 +273,3 @@ public class MenuRequirementService {
         }
     }
 }
-
