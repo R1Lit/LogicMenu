@@ -1,0 +1,22 @@
+﻿name: LogicMenu
+version: '1.5'
+main: pb.r1lit.LogicMenu.LogicMenu
+api-version: '1.18'
+prefix: LogicMenu
+load: POSTWORLD
+authors: [ R1lit ]
+description: LogicMenu core
+website: politblocks.ru
+softdepend:
+  - PlaceholderAPI
+commands:
+  pbg:
+    description: LogicMenu main command
+    usage: /pbg reload
+    permission: pbg.reload
+
+permissions:
+  pbg.reload:
+    description: Reload plugin config
+    default: op
+
