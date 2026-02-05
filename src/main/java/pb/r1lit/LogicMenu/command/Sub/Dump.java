@@ -1,12 +1,13 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.command.CommandSender;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.command.LmSubCommand;
 
-public class DumpSubCommand implements LmSubCommand {
+public class Dump implements LmSubCommand {
     private final LogicMenu plugin;
 
-    public DumpSubCommand(LogicMenu plugin) {
+    public Dump(LogicMenu plugin) {
         this.plugin = plugin;
     }
 

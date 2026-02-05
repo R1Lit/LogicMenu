@@ -1,14 +1,15 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.command.LmSubCommand;
 
-public class ExecuteSubCommand implements LmSubCommand {
+public class Execute implements LmSubCommand {
     private final LogicMenu plugin;
 
-    public ExecuteSubCommand(LogicMenu plugin) {
+    public Execute(LogicMenu plugin) {
         this.plugin = plugin;
     }
 

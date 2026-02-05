@@ -1,15 +1,16 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.command.LmSubCommand;
 
 import java.io.File;
 
-public class InfoSubCommand implements LmSubCommand {
+public class Info implements LmSubCommand {
     private final LogicMenu plugin;
 
-    public InfoSubCommand(LogicMenu plugin) {
+    public Info(LogicMenu plugin) {
         this.plugin = plugin;
     }
 

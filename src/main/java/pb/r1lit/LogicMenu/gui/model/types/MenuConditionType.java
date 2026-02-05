@@ -1,4 +1,4 @@
-package pb.r1lit.LogicMenu.gui.model;
+package pb.r1lit.LogicMenu.gui.model.types;
 
 public enum MenuConditionType {
     PERMISSION,

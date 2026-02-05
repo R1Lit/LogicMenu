@@ -1,12 +1,13 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.command.CommandSender;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.command.LmSubCommand;
 
-public class ReloadSubCommand implements LmSubCommand {
+public class Reload implements LmSubCommand {
     private final LogicMenu plugin;
 
-    public ReloadSubCommand(LogicMenu plugin) {
+    public Reload(LogicMenu plugin) {
         this.plugin = plugin;
     }
 

@@ -1,5 +1,7 @@
 package pb.r1lit.LogicMenu.gui.model;
 
+import pb.r1lit.LogicMenu.gui.model.types.MenuConditionType;
+
 public class MenuCondition {
     private final MenuConditionType type;
     private final String value;

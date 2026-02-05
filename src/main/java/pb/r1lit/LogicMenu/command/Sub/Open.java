@@ -1,17 +1,18 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.command.LmSubCommand;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class OpenSubCommand implements LmSubCommand {
+public class Open implements LmSubCommand {
     private final LogicMenu plugin;
 
-    public OpenSubCommand(LogicMenu plugin) {
+    public Open(LogicMenu plugin) {
         this.plugin = plugin;
     }
 

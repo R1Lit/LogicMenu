@@ -1,4 +1,4 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.util;
 
 import org.bukkit.plugin.PluginDescriptionFile;
 

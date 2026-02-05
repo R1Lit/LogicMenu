@@ -1,5 +1,7 @@
 package pb.r1lit.LogicMenu.gui.model;
 
+import pb.r1lit.LogicMenu.gui.model.types.MenuActionType;
+
 import java.util.HashMap;
 import java.util.Map;
 

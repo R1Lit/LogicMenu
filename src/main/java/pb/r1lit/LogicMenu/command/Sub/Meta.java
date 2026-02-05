@@ -1,17 +1,18 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.command.LmSubCommand;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MetaSubCommand implements LmSubCommand {
+public class Meta implements LmSubCommand {
     private final LogicMenu plugin;
 
-    public MetaSubCommand(LogicMenu plugin) {
+    public Meta(LogicMenu plugin) {
         this.plugin = plugin;
     }
 

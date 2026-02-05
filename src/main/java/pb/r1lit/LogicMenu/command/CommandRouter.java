@@ -5,6 +5,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.command.Sub.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,15 +20,15 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
     public CommandRouter(LogicMenu plugin) {
         this.plugin = plugin;
         register(new HelpCommand(this));
-        register(new ReloadSubCommand(plugin));
-        register(new OpenSubCommand(plugin));
+        register(new Reload(plugin));
+        register(new Open(plugin));
         register(new ListSubCommand(plugin));
-        register(new DumpSubCommand(plugin));
-        register(new ExecuteSubCommand(plugin));
-        register(new ValidateSubCommand(plugin));
-        register(new ExpansionsSubCommand(plugin));
-        register(new MetaSubCommand(plugin));
-        register(new InfoSubCommand(plugin));
+        register(new Dump(plugin));
+        register(new Execute(plugin));
+        register(new Validate(plugin));
+        register(new Expansions(plugin));
+        register(new Meta(plugin));
+        register(new Info(plugin));
     }
 
     private void register(LmSubCommand cmd) {
