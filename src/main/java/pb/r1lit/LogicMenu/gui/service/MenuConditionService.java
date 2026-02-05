@@ -39,7 +39,15 @@ public class MenuConditionService {
             case HAS_TOWN, HAS_NATION, IS_MAYOR -> {
                 if (api == null) yield false;
                 LogicMenuApi.ConditionHandler handler = api.getConditionHandler(condition.getType().name());
-                yield handler != null && handler.test(player, condition, vars);
+                if (handler == null) yield false;
+                try {
+                    yield handler.test(player, condition, vars);
+                } catch (Throwable t) {
+                    if (api instanceof pb.r1lit.LogicMenu.api.LogicMenuApiImpl impl) {
+                        impl.unregisterCondition(condition.getType().name());
+                    }
+                    yield false;
+                }
             }
             case VAR_EQUALS -> {
                 String[] parts = condition.getValue().split("==", 2);
@@ -60,7 +68,15 @@ public class MenuConditionService {
             default -> {
                 if (api == null) yield false;
                 LogicMenuApi.ConditionHandler handler = api.getConditionHandler(condition.getType().name());
-                yield handler != null && handler.test(player, condition, vars);
+                if (handler == null) yield false;
+                try {
+                    yield handler.test(player, condition, vars);
+                } catch (Throwable t) {
+                    if (api instanceof pb.r1lit.LogicMenu.api.LogicMenuApiImpl impl) {
+                        impl.unregisterCondition(condition.getType().name());
+                    }
+                    yield false;
+                }
             }
         };
     }

@@ -128,7 +128,13 @@ public class MenuActionExecutor {
                 if (api == null) return;
                 LogicMenuApi.MenuActionHandler handler = api.getActionHandler(action.getTypeKey());
                 if (handler != null) {
-                    handler.execute(player, current, action, vars);
+                    try {
+                        handler.execute(player, current, action, vars);
+                    } catch (Throwable t) {
+                        if (api instanceof pb.r1lit.LogicMenu.api.LogicMenuApiImpl impl) {
+                            impl.unregisterAction(action.getTypeKey());
+                        }
+                    }
                 }
             }
         }

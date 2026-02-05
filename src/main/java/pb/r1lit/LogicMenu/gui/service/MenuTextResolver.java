@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 
 public class MenuTextResolver {
     private static final Pattern META_PATTERN = Pattern.compile("%logicmenu_meta_([A-Za-z0-9_.-]+)%");
+    private static final Pattern ANCHOR_PATTERN = Pattern.compile("%logicmenu_anchor_([A-Za-z0-9_.-]+)%");
 
     public String resolve(String text, Player player, Map<String, String> vars) {
         if (text == null) return "";
@@ -29,6 +30,17 @@ public class MenuTextResolver {
                 while (matcher.find()) {
                     String key = matcher.group(1);
                     String value = plugin.getMetaStore().get(player, key);
+                    matcher.appendReplacement(buffer, Matcher.quoteReplacement(value));
+                }
+                matcher.appendTail(buffer);
+                resolved = buffer.toString();
+            }
+            if (plugin != null && plugin.getAnchorStore() != null) {
+                Matcher matcher = ANCHOR_PATTERN.matcher(resolved);
+                StringBuffer buffer = new StringBuffer();
+                while (matcher.find()) {
+                    String key = matcher.group(1);
+                    String value = plugin.getAnchorStore().get(player, key);
                     matcher.appendReplacement(buffer, Matcher.quoteReplacement(value));
                 }
                 matcher.appendTail(buffer);

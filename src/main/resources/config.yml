@@ -1,1 +1,6 @@
-﻿
+debug:
+  commands: false
+
+anti-dupe:
+  enabled: true
+  debug: false

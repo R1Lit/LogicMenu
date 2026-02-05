@@ -24,6 +24,8 @@ public final class LogicMenu extends JavaPlugin {
     private LogicMenuApi api;
     private pb.r1lit.LogicMenu.lang.Lang lang;
     private pb.r1lit.LogicMenu.meta.MetaStore metaStore;
+    private pb.r1lit.LogicMenu.anchor.AnchorStore anchorStore;
+    private pb.r1lit.LogicMenu.gui.service.MenuItemMarker menuItemMarker;
     private final java.util.Map<String, org.bukkit.command.Command> registeredCommands = new java.util.HashMap<>();
 
     @Override
@@ -32,15 +34,20 @@ public final class LogicMenu extends JavaPlugin {
         instance = this;
         saveDefaultConfig();
         reloadConfig();
-        menus = new MenuEngine(this);
+        boolean antiDupeEnabled = getConfig().getBoolean("anti-dupe.enabled", true);
+        boolean antiDupeDebug = getConfig().getBoolean("anti-dupe.debug", false);
+        menuItemMarker = new pb.r1lit.LogicMenu.gui.service.MenuItemMarker(this, antiDupeEnabled);
+        menus = new MenuEngine(this, menuItemMarker);
         api = new LogicMenuApiImpl(menus);
         menus.setApi(api);
         getServer().getServicesManager().register(LogicMenuApi.class, api, this, ServicePriority.Normal);
         lang = new pb.r1lit.LogicMenu.lang.Lang(this);
         lang.reload();
         metaStore = new pb.r1lit.LogicMenu.meta.MetaStore(this);
+        anchorStore = new pb.r1lit.LogicMenu.anchor.AnchorStore();
 
         registerMetaActions();
+        registerAnchorActions();
 
         loadExpansions(false);
 
@@ -49,6 +56,10 @@ public final class LogicMenu extends JavaPlugin {
                 .replace("{count}", String.valueOf(menus.getMenuCount())));
         getServer().getPluginManager().registerEvents(menus, this);
         getServer().getPluginManager().registerEvents(new pb.r1lit.LogicMenu.listener.DefCommandOpenListener(this, api), this);
+        if (antiDupeEnabled) {
+            getServer().getPluginManager().registerEvents(
+                    new pb.r1lit.LogicMenu.listener.MenuItemDupeListener(this, menuItemMarker, antiDupeDebug), this);
+        }
 
         registerGuiCommands();
 
@@ -83,6 +94,10 @@ public final class LogicMenu extends JavaPlugin {
 
     public pb.r1lit.LogicMenu.meta.MetaStore getMetaStore() {
         return metaStore;
+    }
+
+    public pb.r1lit.LogicMenu.anchor.AnchorStore getAnchorStore() {
+        return anchorStore;
     }
 
     public int loadExpansions(boolean enableExisting) {
@@ -151,8 +166,15 @@ public final class LogicMenu extends JavaPlugin {
     }
 
     public int reloadExpansions() {
+        clearApiRegistries();
         disableLoadedExpansions();
         return loadExpansions(true);
+    }
+
+    private void clearApiRegistries() {
+        if (api instanceof pb.r1lit.LogicMenu.api.LogicMenuApiImpl impl) {
+            impl.clearRegistries();
+        }
     }
 
     private void disableLoadedExpansions() {
@@ -221,6 +243,41 @@ public final class LogicMenu extends JavaPlugin {
                 }
             }
             if (!key.isEmpty()) metaStore.increment(player, key, delta);
+        });
+    }
+
+    private void registerAnchorActions() {
+        if (api == null || anchorStore == null) return;
+        api.registerAction("ANCHOR", (player, current, action, vars) -> {
+            if (player == null) return;
+            String raw = action.getValue() == null ? "" : action.getValue().trim();
+            if (raw.isEmpty()) return;
+            String resolved = getMenus().getResolver().resolve(raw, player, vars);
+            String key;
+            String value;
+            int eq = resolved.indexOf('=');
+            if (eq > 0) {
+                key = resolved.substring(0, eq).trim();
+                value = resolved.substring(eq + 1).trim();
+            } else {
+                String[] parts = resolved.split("\\s+", 2);
+                key = parts[0].trim();
+                value = parts.length > 1 ? parts[1].trim() : "";
+            }
+            if (!key.isEmpty()) {
+                anchorStore.set(player, key, value);
+            }
+        });
+
+        api.registerAction("ANCHOR_REMOVE", (player, current, action, vars) -> {
+            if (player == null) return;
+            String key = action.getValue() == null ? "" : action.getValue().trim();
+            if (!key.isEmpty()) anchorStore.remove(player, key);
+        });
+
+        api.registerAction("ANCHOR_CLEAR", (player, current, action, vars) -> {
+            if (player == null) return;
+            anchorStore.clear(player);
         });
     }
 

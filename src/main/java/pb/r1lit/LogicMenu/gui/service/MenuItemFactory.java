@@ -9,6 +9,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import pb.r1lit.LogicMenu.gui.model.MenuItemDefinition;
+import pb.r1lit.LogicMenu.gui.service.MenuItemMarker;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -21,9 +22,11 @@ import java.util.UUID;
 public class MenuItemFactory {
 
     private final MenuTextResolver resolver;
+    private final MenuItemMarker marker;
 
-    public MenuItemFactory(MenuTextResolver resolver) {
+    public MenuItemFactory(MenuTextResolver resolver, MenuItemMarker marker) {
         this.resolver = resolver;
+        this.marker = marker;
     }
 
     public ItemStack buildItem(MenuItemDefinition def, org.bukkit.entity.Player player, Map<String, String> vars, Map<String, String> extraVars) {
@@ -37,6 +40,7 @@ public class MenuItemFactory {
         if (external != null) {
             applyMeta(external, def, player, allVars);
             external.setAmount(Math.max(1, def.getAmount()));
+            if (marker != null) marker.mark(external);
             return external;
         }
 
@@ -79,6 +83,7 @@ public class MenuItemFactory {
             }
         }
 
+        if (marker != null) marker.mark(item);
         return item;
     }
 

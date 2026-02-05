@@ -51,14 +51,15 @@ public class MenuEngine implements Listener, MenuNavigation {
     private final Map<String, String> pathIndex = new HashMap<>();
     private LogicMenuApi api;
     private final MenuTextResolver resolver = new MenuTextResolver();
-    private final MenuItemFactory itemFactory = new MenuItemFactory(resolver);
+    private final MenuItemFactory itemFactory;
     private final MenuActionExecutor actionExecutor;
     private final MenuRequirementService requirementService;
     private final MenuConditionService conditionService;
     private int tickCounter = 0;
 
-    public MenuEngine(LogicMenu plugin) {
+    public MenuEngine(LogicMenu plugin, pb.r1lit.LogicMenu.gui.service.MenuItemMarker marker) {
         this.plugin = plugin;
+        this.itemFactory = new MenuItemFactory(resolver, marker);
         this.actionExecutor = new MenuActionExecutor(plugin, resolver, this);
         this.requirementService = new MenuRequirementService(plugin, resolver, actionExecutor);
         this.conditionService = new MenuConditionService(resolver, null);
@@ -83,6 +84,10 @@ public class MenuEngine implements Listener, MenuNavigation {
     public boolean unregisterDynamicProvider(String key) {
         if (key == null || key.isBlank()) return false;
         return providers.remove(key.toUpperCase(Locale.ROOT)) != null;
+    }
+
+    public void clearDynamicProviders() {
+        providers.clear();
     }
 
     public MenuItemFactory getItemFactory() {
@@ -485,6 +490,13 @@ public class MenuEngine implements Listener, MenuNavigation {
         vars.put("page_index", String.valueOf(page));
         vars.put("page_next", String.valueOf(page + 2));
         vars.put("page_prev", String.valueOf(Math.max(1, page)));
+        if (plugin.getAnchorStore() != null) {
+            Map<String, String> anchors = plugin.getAnchorStore().getAll(player);
+            for (Map.Entry<String, String> entry : anchors.entrySet()) {
+                vars.putIfAbsent(entry.getKey(), entry.getValue());
+                vars.putIfAbsent("anchor_" + entry.getKey(), entry.getValue());
+            }
+        }
         if (api != null) {
             api.applyVars(player, vars);
         }

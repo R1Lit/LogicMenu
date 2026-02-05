@@ -279,7 +279,7 @@ public class MenuConfigLoader {
         List<String> lore = v.isList("lore") ? v.getStringList("lore") : base.getLore();
         int amount = v.contains("amount") ? v.getInt("amount", base.getAmount()) : base.getAmount();
         boolean glow = v.contains("glow") ? v.getBoolean("glow", base.isGlow()) : base.isGlow();
-        Integer modelData = v.contains("model-data") ? v.getInt("model-data") : base.getModelData();
+        Integer modelData = v.contains("model-data") ? Integer.valueOf(v.getInt("model-data")) : base.getModelData();
         boolean hideAttributes = v.contains("hide-attributes") ? v.getBoolean("hide-attributes", base.isHideAttributes()) : base.isHideAttributes();
         int priority = v.contains("priority") ? v.getInt("priority", base.getPriority()) : base.getPriority();
         boolean update = v.contains("update") ? v.getBoolean("update", base.isUpdate()) : base.isUpdate();

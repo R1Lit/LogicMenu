@@ -70,8 +70,21 @@ public class LogicMenuApiImpl implements LogicMenuApi {
 
     @Override
     public void applyVars(org.bukkit.entity.Player player, Map<String, String> vars) {
-        for (VarProvider provider : varProviders.values()) {
-            provider.apply(player, vars);
+        var iterator = varProviders.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, VarProvider> entry = iterator.next();
+            try {
+                entry.getValue().apply(player, vars);
+            } catch (Throwable t) {
+                iterator.remove();
+                try {
+                    var logger = pb.r1lit.LogicMenu.LogicMenu.getInstance() != null
+                            ? pb.r1lit.LogicMenu.LogicMenu.getInstance().getLogger()
+                            : java.util.logging.Logger.getLogger("LogicMenu");
+                    logger.warning("[LogicMenu] Removed var provider '" + entry.getKey() + "' due to error: " + t.getMessage());
+                } catch (Throwable ignored) {
+                }
+            }
         }
     }
 
@@ -125,6 +138,15 @@ public class LogicMenuApiImpl implements LogicMenuApi {
     @Override
     public pb.r1lit.LogicMenu.gui.service.MenuTextResolver getTextResolver() {
         return menus != null ? menus.getResolver() : null;
+    }
+
+    public void clearRegistries() {
+        actions.clear();
+        conditions.clear();
+        varProviders.clear();
+        if (menus != null) {
+            menus.clearDynamicProviders();
+        }
     }
 }
 
