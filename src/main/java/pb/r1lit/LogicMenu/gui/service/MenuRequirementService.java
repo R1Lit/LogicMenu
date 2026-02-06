@@ -14,16 +14,47 @@ import pb.r1lit.LogicMenu.gui.model.MenuRequirement;
 import pb.r1lit.LogicMenu.gui.model.MenuRequirementGroup;
 import pb.r1lit.LogicMenu.gui.model.MenuState;
 
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.SimpleBindings;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MenuRequirementService {
 
     private final MenuTextResolver resolver;
     private final MenuActionExecutor actionExecutor;
     private final LogicMenu plugin;
+    private final AtomicBoolean jsDisabledLogged = new AtomicBoolean(false);
+    private final AtomicBoolean jsEngineMissingLogged = new AtomicBoolean(false);
+    private static final ExecutorService JS_EXECUTOR = Executors.newCachedThreadPool(new ThreadFactory() {
+        private int idx = 0;
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "LogicMenu-JS-" + (++idx));
+            t.setDaemon(true);
+            return t;
+        }
+    });
+    private static final Pattern JAVA_TYPE_PATTERN = Pattern.compile("Java\\.type\\(['\"]([^'\"]+)['\"]\\)");
+    private static final Pattern PACKAGES_PATTERN = Pattern.compile("Packages\\.([a-zA-Z0-9_\\.]+)");
+    private static final Pattern DIRECT_PACKAGE_PATTERN = Pattern.compile("\\b(java|javax|sun|com|org|jdk)\\.[A-Za-z0-9_\\.]+");
+    private static final List<String> BLOCKED_TOKENS = List.of("java.", "javax.", "sun.", "com.", "org.", "jdk.",
+            "packages", "java.type", "classloader", "runtime", "process");
 
     public MenuRequirementService(LogicMenu plugin, MenuTextResolver resolver, MenuActionExecutor actionExecutor) {
         this.plugin = plugin;
@@ -227,17 +258,120 @@ public class MenuRequirementService {
     }
 
     private boolean evalJavascript(String expression, Player player, Map<String, String> vars) {
-        try {
-            javax.script.ScriptEngine engine = new javax.script.ScriptEngineManager().getEngineByName("javascript");
-            if (engine == null) engine = new javax.script.ScriptEngineManager().getEngineByName("nashorn");
-            if (engine == null) return false;
-            engine.put("player", player);
-            engine.put("vars", vars);
-            Object result = engine.eval(resolver.resolve(expression, player, vars));
+        if (expression == null || expression.isBlank()) return false;
+        if (!plugin.getConfig().getBoolean("javascript.enabled", false)) {
+            if (jsDisabledLogged.compareAndSet(false, true)) {
+                plugin.getLogger().warning("Javascript requirements are disabled. Enable javascript.enabled in config.yml if you trust your configs.");
+            }
+            return false;
+        }
+
+        List<String> allowPackages = plugin.getConfig().getStringList("javascript.allow-packages");
+        if (!isExpressionAllowed(expression, allowPackages)) {
+            plugin.getLogger().warning("Javascript requirement blocked by allow-packages policy.");
+            return false;
+        }
+
+        int timeoutMs = Math.max(1, plugin.getConfig().getInt("javascript.timeout-ms", 25));
+        String resolved = resolver.resolve(expression, player, vars);
+
+        Callable<Boolean> task = () -> {
+            ScriptEngine engine = new ScriptEngineManager().getEngineByName("javascript");
+            if (engine == null) engine = new ScriptEngineManager().getEngineByName("nashorn");
+            if (engine == null) {
+                if (jsEngineMissingLogged.compareAndSet(false, true)) {
+                    plugin.getLogger().warning("Javascript engine not available. Install a JS engine or disable javascript requirements.");
+                }
+                return false;
+            }
+            Bindings bindings = new SimpleBindings();
+            SafeJsContext ctx = new SafeJsContext(player, vars == null ? Map.of() : vars);
+            bindings.put("ctx", ctx);
+            bindings.put("playerLevel", ctx.playerLevel());
+            bindings.put("vars", Map.copyOf(ctx.vars));
+            engine.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+            Object result = engine.eval(resolved, bindings);
             if (result instanceof Boolean) return (Boolean) result;
             return result != null && result.toString().equalsIgnoreCase("true");
-        } catch (Exception e) {
+        };
+
+        Future<Boolean> future = JS_EXECUTOR.submit(task);
+        try {
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            plugin.getLogger().warning("Javascript requirement timed out after " + timeoutMs + "ms.");
             return false;
+        } catch (Exception e) {
+            if (e.getCause() == null) {
+                return false;
+            }
+            plugin.getLogger().warning("Javascript requirement error: " + e.getCause().getMessage());
+            return false;
+        }
+    }
+
+    private boolean isExpressionAllowed(String expression, List<String> allowPackages) {
+        if (expression == null) return false;
+        String lower = expression.toLowerCase(Locale.ROOT);
+        boolean hasAllow = allowPackages != null && !allowPackages.isEmpty();
+        List<String> normalizedAllow = hasAllow
+                ? allowPackages.stream().filter(s -> s != null && !s.isBlank()).map(String::trim).map(String::toLowerCase).toList()
+                : List.of();
+
+        if (!hasAllow) {
+            for (String token : BLOCKED_TOKENS) {
+                if (lower.contains(token)) return false;
+            }
+            return true;
+        }
+
+        Matcher javaType = JAVA_TYPE_PATTERN.matcher(expression);
+        while (javaType.find()) {
+            String clazz = javaType.group(1);
+            if (!isAllowedPrefix(clazz, normalizedAllow)) return false;
+        }
+
+        Matcher packages = PACKAGES_PATTERN.matcher(expression);
+        while (packages.find()) {
+            String path = packages.group(1);
+            if (!isAllowedPrefix(path, normalizedAllow)) return false;
+        }
+
+        Matcher direct = DIRECT_PACKAGE_PATTERN.matcher(expression);
+        while (direct.find()) {
+            String path = direct.group();
+            if (!isAllowedPrefix(path, normalizedAllow)) return false;
+        }
+        return true;
+    }
+
+    private boolean isAllowedPrefix(String value, List<String> allow) {
+        if (value == null) return false;
+        String lower = value.toLowerCase(Locale.ROOT);
+        for (String prefix : allow) {
+            if (lower.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    private static final class SafeJsContext {
+        private final Player player;
+        private final Map<String, String> vars;
+        private SafeJsContext(Player player, Map<String, String> vars) {
+            this.player = player;
+            this.vars = vars == null ? Map.of() : vars;
+        }
+        public int playerLevel() {
+            return player == null ? 0 : player.getLevel();
+        }
+        public boolean hasPermission(String perm) {
+            if (player == null || perm == null) return false;
+            return player.hasPermission(perm);
+        }
+        public String var(String key) {
+            if (key == null) return "";
+            return vars.getOrDefault(key, "");
         }
     }
 

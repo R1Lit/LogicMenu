@@ -12,8 +12,10 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import pb.r1lit.LogicMenu.LogicMenu;
 import pb.r1lit.LogicMenu.api.LogicMenuApi;
 import pb.r1lit.LogicMenu.gui.config.MenuConfigLoader;
@@ -47,6 +49,7 @@ public class MenuEngine implements Listener, MenuNavigation {
     private final Map<String, MenuDefinition> menus = new HashMap<>();
     private final Map<String, MenuDynamicProvider> providers = new HashMap<>();
     private final Map<UUID, Deque<MenuState>> history = new HashMap<>();
+    private final Map<UUID, Map<String, Long>> clickCooldowns = new HashMap<>();
     private final Map<String, String> openCommandIndex = new HashMap<>();
     private final Map<String, String> pathIndex = new HashMap<>();
     private LogicMenuApi api;
@@ -56,6 +59,7 @@ public class MenuEngine implements Listener, MenuNavigation {
     private final MenuRequirementService requirementService;
     private final MenuConditionService conditionService;
     private int tickCounter = 0;
+    private static final int MAX_HISTORY = 10;
 
     public MenuEngine(LogicMenu plugin, pb.r1lit.LogicMenu.gui.service.MenuItemMarker marker) {
         this.plugin = plugin;
@@ -229,7 +233,11 @@ public class MenuEngine implements Listener, MenuNavigation {
         }
 
         if (pushHistory && current != null) {
-            history.computeIfAbsent(player.getUniqueId(), k -> new ArrayDeque<>()).push(current);
+            Deque<MenuState> stack = history.computeIfAbsent(player.getUniqueId(), k -> new ArrayDeque<>());
+            stack.push(current);
+            while (stack.size() > MAX_HISTORY) {
+                stack.removeLast();
+            }
         }
 
         MenuState state = new MenuState(resolvedId, page, vars);
@@ -289,6 +297,7 @@ public class MenuEngine implements Listener, MenuNavigation {
         List<MenuAction> clickSpecific = resolveClickActions(actions == null ? List.of() : actions, holder, slot, event.getClick());
         if (clickSpecific == null || clickSpecific.isEmpty()) return;
         for (MenuAction action : clickSpecific) {
+            if (isOnCooldown(player, holder, slot, action)) continue;
             actionExecutor.execute(player, holder.getState(), action, vars);
         }
 
@@ -307,6 +316,19 @@ public class MenuEngine implements Listener, MenuNavigation {
         if (!(event.getPlayer() instanceof Player player)) return;
         if (!(event.getView().getTopInventory().getHolder() instanceof MenuHolder)) return;
         player.setItemOnCursor(null);
+        if (event.getView().getTopInventory().getHolder() instanceof MenuHolder holder) {
+            holder.dispose();
+        }
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!(player.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder)) {
+                clearPlayerState(player.getUniqueId());
+            }
+        });
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        clearPlayerState(event.getPlayer().getUniqueId());
     }
 
     private void renderMenu(Player player, MenuDefinition menu, MenuHolder holder) {
@@ -329,6 +351,7 @@ public class MenuEngine implements Listener, MenuNavigation {
             holder.setSlotActions(slot, def.getActions());
             holder.setSlotClickActions(slot, def.getClickActions());
             holder.setSlotDefinition(slot, def);
+            holder.setSlotFingerprint(slot, fingerprint(item));
         }
 
         if (menu.getDynamic() != null) {
@@ -429,6 +452,7 @@ public class MenuEngine implements Listener, MenuNavigation {
             MenuDefinition menu = menus.get(holder.getState().getMenuId());
             if (menu == null) continue;
             if (!menu.isUpdate() && holder.getUpdateSlots().isEmpty()) continue;
+            if (holder.getUpdateSlots().isEmpty()) continue;
 
             int interval = menu.getUpdateIntervalTicks();
             if (interval <= 0) continue;
@@ -452,7 +476,12 @@ public class MenuEngine implements Listener, MenuNavigation {
             if (def == null) continue;
             ItemStack item = itemFactory.buildItem(def, player, baseVars, holder.getSlotVars(slot));
             if (item == null) continue;
-            inv.setItem(slot, item);
+            String fingerprint = fingerprint(item);
+            String prev = holder.getSlotFingerprint(slot);
+            if (prev == null || !prev.equals(fingerprint)) {
+                inv.setItem(slot, item);
+                holder.setSlotFingerprint(slot, fingerprint);
+            }
             holder.setSlotActions(slot, def.getActions());
             holder.setSlotClickActions(slot, def.getClickActions());
             holder.setSlotDefinition(slot, def);
@@ -524,6 +553,47 @@ public class MenuEngine implements Listener, MenuNavigation {
         if (click == ClickType.DROP) return "drop";
         if (click == ClickType.NUMBER_KEY) return "hotbar";
         return "left";
+    }
+
+    private boolean isOnCooldown(Player player, MenuHolder holder, int slot, MenuAction action) {
+        if (player == null || holder == null || action == null) return false;
+        String raw = action.getParams().get("_cooldown");
+        if (raw == null || raw.isBlank()) return false;
+        Integer ticks = parseInt(raw);
+        if (ticks == null || ticks <= 0) return false;
+        long now = System.currentTimeMillis();
+        long cooldownMs = ticks * 50L;
+        String key = holder.getState().getMenuId() + ":" + slot + ":" + action.getTypeKey();
+        Map<String, Long> map = clickCooldowns.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
+        Long last = map.get(key);
+        if (last != null && now - last < cooldownMs) {
+            return true;
+        }
+        map.put(key, now);
+        return false;
+    }
+
+    private Integer parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String fingerprint(ItemStack item) {
+        if (item == null) return "null";
+        ItemMeta meta = item.getItemMeta();
+        String name = meta != null && meta.hasDisplayName() ? meta.getDisplayName() : "";
+        String lore = meta != null && meta.hasLore() && meta.getLore() != null ? String.join("\n", meta.getLore()) : "";
+        String model = meta != null && meta.hasCustomModelData() ? String.valueOf(meta.getCustomModelData()) : "";
+        return item.getType().name() + "|" + item.getAmount() + "|" + name + "|" + lore + "|" + model;
+    }
+
+    private void clearPlayerState(UUID uuid) {
+        if (uuid == null) return;
+        history.remove(uuid);
+        clickCooldowns.remove(uuid);
     }
 
     private void collectYamlFiles(File dir, List<File> out) {

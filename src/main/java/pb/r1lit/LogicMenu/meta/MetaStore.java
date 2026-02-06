@@ -1,4 +1,4 @@
-﻿package pb.r1lit.LogicMenu.meta;
+package pb.r1lit.LogicMenu.meta;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -73,3 +73,4 @@ public class MetaStore {
         }
     }
 }
+

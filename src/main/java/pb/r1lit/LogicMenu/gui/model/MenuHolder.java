@@ -15,6 +15,7 @@ public class MenuHolder implements InventoryHolder {
     private final Map<Integer, Map<String, List<MenuAction>>> clickActionsBySlot = new HashMap<>();
     private final Map<Integer, Map<String, String>> varsBySlot = new HashMap<>();
     private final Map<Integer, MenuItemDefinition> defBySlot = new HashMap<>();
+    private final Map<Integer, String> fingerprintBySlot = new HashMap<>();
     private final Set<Integer> updateSlots = new HashSet<>();
     private Inventory inventory;
     private int lastRenderTick;
@@ -72,6 +73,18 @@ public class MenuHolder implements InventoryHolder {
         return updateSlots;
     }
 
+    public String getSlotFingerprint(int slot) {
+        return fingerprintBySlot.get(slot);
+    }
+
+    public void setSlotFingerprint(int slot, String fingerprint) {
+        if (fingerprint == null) {
+            fingerprintBySlot.remove(slot);
+        } else {
+            fingerprintBySlot.put(slot, fingerprint);
+        }
+    }
+
     public int getLastRenderTick() {
         return lastRenderTick;
     }
@@ -83,6 +96,16 @@ public class MenuHolder implements InventoryHolder {
     @Override
     public Inventory getInventory() {
         return inventory;
+    }
+
+    public void dispose() {
+        actionsBySlot.clear();
+        clickActionsBySlot.clear();
+        varsBySlot.clear();
+        defBySlot.clear();
+        fingerprintBySlot.clear();
+        updateSlots.clear();
+        inventory = null;
     }
 }
 

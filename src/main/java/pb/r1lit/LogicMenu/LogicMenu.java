@@ -25,6 +25,7 @@ public final class LogicMenu extends JavaPlugin {
     private pb.r1lit.LogicMenu.lang.Lang lang;
     private pb.r1lit.LogicMenu.meta.MetaStore metaStore;
     private pb.r1lit.LogicMenu.anchor.AnchorStore anchorStore;
+    private pb.r1lit.LogicMenu.gui.input.AnvilInputManager anvilInput;
     private pb.r1lit.LogicMenu.gui.service.MenuItemMarker menuItemMarker;
     private final java.util.Map<String, org.bukkit.command.Command> registeredCommands = new java.util.HashMap<>();
 
@@ -45,9 +46,11 @@ public final class LogicMenu extends JavaPlugin {
         lang.reload();
         metaStore = new pb.r1lit.LogicMenu.meta.MetaStore(this);
         anchorStore = new pb.r1lit.LogicMenu.anchor.AnchorStore();
+        anvilInput = new pb.r1lit.LogicMenu.gui.input.AnvilInputManager();
 
         registerMetaActions();
         registerAnchorActions();
+        registerAnvilActions();
 
         loadExpansions(false);
 
@@ -56,6 +59,7 @@ public final class LogicMenu extends JavaPlugin {
                 .replace("{count}", String.valueOf(menus.getMenuCount())));
         getServer().getPluginManager().registerEvents(menus, this);
         getServer().getPluginManager().registerEvents(new pb.r1lit.LogicMenu.listener.DefCommandOpenListener(this, api), this);
+        getServer().getPluginManager().registerEvents(anvilInput, this);
         if (antiDupeEnabled) {
             getServer().getPluginManager().registerEvents(
                     new pb.r1lit.LogicMenu.listener.MenuItemDupeListener(this, menuItemMarker, antiDupeDebug), this);
@@ -278,6 +282,36 @@ public final class LogicMenu extends JavaPlugin {
         api.registerAction("ANCHOR_CLEAR", (player, current, action, vars) -> {
             if (player == null) return;
             anchorStore.clear(player);
+        });
+    }
+
+    private void registerAnvilActions() {
+        if (api == null || anvilInput == null || menus == null) return;
+        api.registerAction("ANVIL_INPUT", (player, current, action, vars) -> {
+            if (player == null) return;
+            String title = action.getParams().getOrDefault("_title", "&8Input");
+            String prompt = action.getParams().getOrDefault("_prompt", "");
+            String followup = action.getValue() == null ? "" : action.getValue().trim();
+
+            anvilInput.open(player, title, prompt, input -> {
+                java.util.Map<String, String> newVars = new java.util.HashMap<>(vars == null ? java.util.Map.of() : vars);
+                newVars.put("input", input);
+
+                String anchorKey = action.getParams().getOrDefault("_anchor", "");
+                if (anchorStore != null && !anchorKey.isBlank()) {
+                    anchorStore.set(player, anchorKey, input);
+                }
+                String metaKey = action.getParams().getOrDefault("_meta", "");
+                if (metaStore != null && !metaKey.isBlank()) {
+                    metaStore.set(player, metaKey, input);
+                }
+
+                if (!followup.isBlank()) {
+                    String resolved = menus.getResolver().resolve(followup, player, newVars);
+                    pb.r1lit.LogicMenu.gui.model.MenuAction next = pb.r1lit.LogicMenu.gui.model.MenuAction.parse(resolved);
+                    menus.executeAction(player, next, newVars);
+                }
+            });
         });
     }
 

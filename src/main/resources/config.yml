@@ -4,3 +4,8 @@ debug:
 anti-dupe:
   enabled: true
   debug: false
+
+javascript:
+  enabled: false
+  timeout-ms: 25
+  allow-packages: []
