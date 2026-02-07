@@ -9,20 +9,19 @@ import pb.r1lit.LogicMenu.command.Sub.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 public class CommandRouter implements CommandExecutor, TabCompleter {
     private final LogicMenu plugin;
-    private final Map<String, LmSubCommand> commands = new HashMap<>();
+    private final Map<String, Lm> commands = new HashMap<>();
 
     public CommandRouter(LogicMenu plugin) {
         this.plugin = plugin;
         register(new HelpCommand(this));
         register(new Reload(plugin));
         register(new Open(plugin));
-        register(new ListSubCommand(plugin));
+        register(new List(plugin));
         register(new Dump(plugin));
         register(new Execute(plugin));
         register(new Validate(plugin));
@@ -31,16 +30,16 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
         register(new Info(plugin));
     }
 
-    private void register(LmSubCommand cmd) {
+    private void register(Lm cmd) {
         commands.put(cmd.name().toLowerCase(Locale.ROOT), cmd);
         for (String alias : cmd.aliases()) {
             commands.put(alias.toLowerCase(Locale.ROOT), cmd);
         }
     }
 
-    public List<LmSubCommand> uniqueCommands() {
-        List<LmSubCommand> list = new ArrayList<>();
-        for (LmSubCommand cmd : commands.values()) {
+    public java.util.List<Lm> uniqueCommands() {
+        java.util.List<Lm> list = new ArrayList<>();
+        for (Lm cmd : commands.values()) {
             if (!list.contains(cmd)) list.add(cmd);
         }
         list.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
@@ -61,7 +60,7 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
             return commands.get("help").execute(sender, new String[0]);
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
-        LmSubCommand cmd = commands.get(sub);
+        Lm cmd = commands.get(sub);
         if (cmd == null) {
             sender.sendMessage(plugin.getLang().get("command.unknown_subcommand", "&cUnknown subcommand. Use /{label} help.")
                     .replace("{label}", label));
@@ -78,14 +77,14 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public java.util.List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!sender.hasPermission("logicmenu.use") && !sender.hasPermission("logicmenu.admin")) {
-            return List.of();
+            return java.util.List.of();
         }
         if (args.length <= 1) {
-            List<String> out = new ArrayList<>();
+            java.util.List<String> out = new ArrayList<>();
             String prefix = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
-            for (LmSubCommand cmd : uniqueCommands()) {
+            for (Lm cmd : uniqueCommands()) {
                 String name = cmd.name();
                 if (!prefix.isBlank() && !name.startsWith(prefix)) continue;
                 String perm = cmd.permission();
@@ -95,10 +94,10 @@ public class CommandRouter implements CommandExecutor, TabCompleter {
             return out;
         }
         String sub = args[0].toLowerCase(Locale.ROOT);
-        LmSubCommand cmd = commands.get(sub);
-        if (cmd == null) return List.of();
+        Lm cmd = commands.get(sub);
+        if (cmd == null) return java.util.List.of();
         String perm = cmd.permission();
-        if (perm != null && !perm.isBlank() && !sender.hasPermission(perm)) return List.of();
+        if (perm != null && !perm.isBlank() && !sender.hasPermission(perm)) return java.util.List.of();
         String[] rest = new String[args.length - 1];
         System.arraycopy(args, 1, rest, 0, rest.length);
         return cmd.tabComplete(sender, rest);

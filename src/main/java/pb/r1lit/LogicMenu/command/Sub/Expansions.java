@@ -3,7 +3,6 @@ package pb.r1lit.LogicMenu.command.Sub;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import pb.r1lit.LogicMenu.LogicMenu;
-import pb.r1lit.LogicMenu.command.LmSubCommand;
 import pb.r1lit.LogicMenu.command.util.PluginJarUtil;
 
 import java.io.File;
@@ -11,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class Expansions implements LmSubCommand {
+public class Expansions implements Lm {
     private final LogicMenu plugin;
 
     public Expansions(LogicMenu plugin) {

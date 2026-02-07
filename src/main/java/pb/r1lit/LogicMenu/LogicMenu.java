@@ -46,7 +46,7 @@ public final class LogicMenu extends JavaPlugin {
         lang.reload();
         metaStore = new pb.r1lit.LogicMenu.meta.MetaStore(this);
         anchorStore = new pb.r1lit.LogicMenu.anchor.AnchorStore();
-        anvilInput = new pb.r1lit.LogicMenu.gui.input.AnvilInputManager();
+        anvilInput = new pb.r1lit.LogicMenu.gui.input.AnvilInputManager(this);
 
         registerMetaActions();
         registerAnchorActions();
@@ -306,14 +306,14 @@ public final class LogicMenu extends JavaPlugin {
                     metaStore.set(player, metaKey, input);
                 }
 
-                if (!followup.isBlank()) {
-                    String resolved = menus.getResolver().resolve(followup, player, newVars);
-                    pb.r1lit.LogicMenu.gui.model.MenuAction next = pb.r1lit.LogicMenu.gui.model.MenuAction.parse(resolved);
-                    menus.executeAction(player, next, newVars);
-                }
-            });
-        });
-    }
+                  if (!followup.isBlank()) {
+                      String resolved = menus.getResolver().resolve(followup, player, newVars);
+                      pb.r1lit.LogicMenu.gui.model.MenuAction next = pb.r1lit.LogicMenu.gui.model.MenuAction.parse(resolved);
+                      menus.executeAction(player, current, next, newVars);
+                  }
+              });
+          });
+      }
 
     public void registerGuiCommands() {
         var cfg = getConfig();

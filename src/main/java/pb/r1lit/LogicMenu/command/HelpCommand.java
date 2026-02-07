@@ -1,8 +1,9 @@
 package pb.r1lit.LogicMenu.command;
 
 import org.bukkit.command.CommandSender;
+import pb.r1lit.LogicMenu.command.Sub.Lm;
 
-public class HelpCommand implements LmSubCommand {
+public class HelpCommand implements Lm {
     private final CommandRouter router;
 
     public HelpCommand(CommandRouter router) {
@@ -28,7 +29,7 @@ public class HelpCommand implements LmSubCommand {
     public boolean execute(CommandSender sender, String[] args) {
         var plugin = router.getPlugin();
         sender.sendMessage(plugin.getLang().get("help.header", "&eLogicMenu commands:"));
-        for (LmSubCommand sub : router.uniqueCommands()) {
+        for (Lm sub : router.uniqueCommands()) {
             if (sub.permission() != null && !sub.permission().isBlank() && !sender.hasPermission(sub.permission())) continue;
             String line = plugin.getLang().get("help.line", "&7/{label} {name} {usage} &f- {desc}")
                     .replace("{label}", "logicmenu")

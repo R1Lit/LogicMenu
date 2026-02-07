@@ -4,9 +4,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pb.r1lit.LogicMenu.LogicMenu;
-import pb.r1lit.LogicMenu.command.LmSubCommand;
 
-public class Execute implements LmSubCommand {
+public class Execute implements Lm {
     private final LogicMenu plugin;
 
     public Execute(LogicMenu plugin) {

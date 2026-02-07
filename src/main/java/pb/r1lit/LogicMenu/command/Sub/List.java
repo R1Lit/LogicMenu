@@ -1,12 +1,12 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.command.CommandSender;
 import pb.r1lit.LogicMenu.LogicMenu;
 
-public class ListSubCommand implements LmSubCommand {
+public class List implements Lm {
     private final LogicMenu plugin;
 
-    public ListSubCommand(LogicMenu plugin) {
+    public List(LogicMenu plugin) {
         this.plugin = plugin;
     }
 

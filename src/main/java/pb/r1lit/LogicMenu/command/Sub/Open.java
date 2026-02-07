@@ -4,12 +4,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pb.r1lit.LogicMenu.LogicMenu;
-import pb.r1lit.LogicMenu.command.LmSubCommand;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Open implements LmSubCommand {
+public class Open implements Lm {
     private final LogicMenu plugin;
 
     public Open(LogicMenu plugin) {

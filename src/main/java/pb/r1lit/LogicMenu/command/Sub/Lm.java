@@ -1,10 +1,10 @@
-package pb.r1lit.LogicMenu.command;
+package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-public interface LmSubCommand {
+public interface Lm {
     String name();
 
     default List<String> aliases() {

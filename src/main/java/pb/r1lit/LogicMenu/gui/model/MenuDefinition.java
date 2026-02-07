@@ -10,6 +10,8 @@ public class MenuDefinition {
     private final MenuItemDefinition fillItem;
     private final java.util.List<Integer> fillSlots;
     private final String fillSlotRange;
+    private final String fillType;
+    private final java.util.List<MenuFillDefinition> fills;
     private final MenuDynamicDefinition dynamic;
     private final List<MenuDynamicDefinition> dynamics;
     private final java.util.Map<String, String> vars;
@@ -25,6 +27,7 @@ public class MenuDefinition {
                           String permission, boolean update, int updateIntervalTicks,
                           MenuRequirementGroup openRequirement,
                           java.util.List<Integer> fillSlots, String fillSlotRange,
+                          String fillType, java.util.List<MenuFillDefinition> fills,
                           java.util.List<String> openCommands) {
         this.id = id;
         this.title = title;
@@ -33,6 +36,8 @@ public class MenuDefinition {
         this.fillItem = fillItem;
         this.fillSlots = fillSlots;
         this.fillSlotRange = fillSlotRange;
+        this.fillType = fillType;
+        this.fills = fills == null ? java.util.List.of() : fills;
         this.dynamic = dynamic;
         this.dynamics = dynamics;
         this.vars = vars;
@@ -69,6 +74,14 @@ public class MenuDefinition {
 
     public String getFillSlotRange() {
         return fillSlotRange;
+    }
+
+    public String getFillType() {
+        return fillType;
+    }
+
+    public java.util.List<MenuFillDefinition> getFills() {
+        return fills;
     }
 
     public MenuDynamicDefinition getDynamic() {

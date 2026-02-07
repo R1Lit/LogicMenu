@@ -45,16 +45,36 @@ public class MenuItemFactory {
         }
 
         String matName = rawMat.toUpperCase(Locale.ROOT);
+        String lowerMat = rawMat.toLowerCase(Locale.ROOT);
         Material material;
         boolean isHead = false;
         String headOwner = null;
-        if (matName.startsWith("HEAD;") || matName.startsWith("HEAD-")) {
+        String headBase64 = null;
+        String headTextureId = null;
+        String headTextureUrl = null;
+
+        if (lowerMat.startsWith("head;") || lowerMat.startsWith("head-") || lowerMat.startsWith("head:")) {
             isHead = true;
             headOwner = rawMat.substring(5).trim();
             material = Material.PLAYER_HEAD;
-        } else if (matName.startsWith("BASEHEAD-") || matName.startsWith("TEXTURE-")) {
-            material = Material.PLAYER_HEAD;
+        } else if (lowerMat.startsWith("basehead-") || lowerMat.startsWith("base64-") || lowerMat.startsWith("b64-")
+                || lowerMat.startsWith("headbase64-") || lowerMat.startsWith("head64-")
+                || lowerMat.startsWith("basehead:") || lowerMat.startsWith("base64:") || lowerMat.startsWith("b64:")
+                || lowerMat.startsWith("headbase64:") || lowerMat.startsWith("head64:")) {
             isHead = true;
+            material = Material.PLAYER_HEAD;
+            headBase64 = stripHeadPrefix(rawMat, lowerMat);
+        } else if (lowerMat.startsWith("texture-") || lowerMat.startsWith("texture:") ||
+                lowerMat.startsWith("textureid-") || lowerMat.startsWith("textureid:")) {
+            isHead = true;
+            material = Material.PLAYER_HEAD;
+            headTextureId = stripHeadPrefix(rawMat, lowerMat);
+        } else if (lowerMat.startsWith("headurl-") || lowerMat.startsWith("headurl:")
+                || lowerMat.startsWith("textureurl-") || lowerMat.startsWith("textureurl:")
+                || lowerMat.startsWith("url-") || lowerMat.startsWith("url:")) {
+            isHead = true;
+            material = Material.PLAYER_HEAD;
+            headTextureUrl = stripHeadPrefix(rawMat, lowerMat);
         } else {
             try {
                 material = Material.valueOf(matName);
@@ -71,12 +91,13 @@ public class MenuItemFactory {
             if (m instanceof SkullMeta skullMeta) {
                 if (headOwner != null && !headOwner.isBlank()) {
                     skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(headOwner));
-                } else if (matName.startsWith("BASEHEAD-")) {
-                    String base64 = rawMat.substring("basehead-".length()).trim();
+                } else if (headBase64 != null && !headBase64.isBlank()) {
+                    applyBase64ToSkull(skullMeta, headBase64);
+                } else if (headTextureId != null && !headTextureId.isBlank()) {
+                    String base64 = textureToBase64(headTextureId);
                     applyBase64ToSkull(skullMeta, base64);
-                } else if (matName.startsWith("TEXTURE-")) {
-                    String texture = rawMat.substring("texture-".length()).trim();
-                    String base64 = textureToBase64(texture);
+                } else if (headTextureUrl != null && !headTextureUrl.isBlank()) {
+                    String base64 = urlToBase64(headTextureUrl);
                     applyBase64ToSkull(skullMeta, base64);
                 }
                 item.setItemMeta(skullMeta);
@@ -210,9 +231,29 @@ public class MenuItemFactory {
     }
 
     private String textureToBase64(String textureId) {
-        String url = "http://textures.minecraft.net/texture/" + textureId;
+        String url = "https://textures.minecraft.net/texture/" + textureId;
+        return urlToBase64(url);
+    }
+
+    private String urlToBase64(String url) {
         String json = "{\"textures\":{\"SKIN\":{\"url\":\"" + url + "\"}}}";
         return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String stripHeadPrefix(String raw, String lowerRaw) {
+        String[] prefixes = {
+                "head;", "head-", "head:",
+                "basehead-", "base64-", "b64-", "headbase64-", "head64-",
+                "basehead:", "base64:", "b64:", "headbase64:", "head64:",
+                "texture-", "texture:", "textureid-", "textureid:",
+                "headurl-", "headurl:", "textureurl-", "textureurl:", "url-", "url:"
+        };
+        for (String prefix : prefixes) {
+            if (lowerRaw.startsWith(prefix)) {
+                return raw.substring(prefix.length()).trim();
+            }
+        }
+        return raw;
     }
 }
 

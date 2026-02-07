@@ -4,14 +4,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import pb.r1lit.LogicMenu.LogicMenu;
-import pb.r1lit.LogicMenu.command.LmSubCommand;
 import pb.r1lit.LogicMenu.gui.config.MenuConfigLoader;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Validate implements LmSubCommand {
+public class Validate implements Lm {
     private final LogicMenu plugin;
     private final MenuConfigLoader loader = new MenuConfigLoader();
 

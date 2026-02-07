@@ -3,13 +3,12 @@ package pb.r1lit.LogicMenu.command.Sub;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pb.r1lit.LogicMenu.LogicMenu;
-import pb.r1lit.LogicMenu.command.LmSubCommand;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class Meta implements LmSubCommand {
+public class Meta implements Lm {
     private final LogicMenu plugin;
 
     public Meta(LogicMenu plugin) {

@@ -12,6 +12,8 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.InventoryView;
@@ -26,6 +28,11 @@ import java.util.function.Consumer;
 public class AnvilInputManager implements Listener {
 
     private final Map<UUID, AnvilRequest> requests = new ConcurrentHashMap<>();
+    private final org.bukkit.plugin.java.JavaPlugin plugin;
+
+    public AnvilInputManager(org.bukkit.plugin.java.JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
 
     public void open(Player player, String title, String prompt, Consumer<String> onComplete) {
         if (player == null || onComplete == null) return;
@@ -42,7 +49,8 @@ public class AnvilInputManager implements Listener {
                 if (!safePrompt.isBlank()) {
                     meta.setDisplayName(safePrompt);
                 } else {
-                    meta.setDisplayName("");
+                    // Use a single space to avoid showing the default "Paper" name.
+                    meta.setDisplayName(" ");
                 }
                 paper.setItemMeta(meta);
             }
@@ -56,8 +64,12 @@ public class AnvilInputManager implements Listener {
         Inventory top = view.getTopInventory();
         ItemStack paper = new ItemStack(Material.PAPER);
         ItemMeta meta = paper.getItemMeta();
-        if (meta != null && !safePrompt.isBlank()) {
-            meta.setDisplayName(safePrompt);
+        if (meta != null) {
+            if (!safePrompt.isBlank()) {
+                meta.setDisplayName(safePrompt);
+            } else {
+                meta.setDisplayName(" ");
+            }
             paper.setItemMeta(meta);
         }
         top.setItem(0, paper);
@@ -92,6 +104,11 @@ public class AnvilInputManager implements Listener {
         }
 
         request = requests.remove(player.getUniqueId());
+        event.setCurrentItem(new ItemStack(Material.AIR));
+        if (event.getCursor() != null && event.getCursor().getType() != Material.AIR) {
+            event.setCursor(new ItemStack(Material.AIR));
+        }
+        scheduleCleanup(player, event.getView());
         player.closeInventory();
         if (request == null) return;
         if (cleaned.isBlank() || (!request.prompt.isBlank() && cleaned.equalsIgnoreCase(request.prompt))) {
@@ -116,6 +133,7 @@ public class AnvilInputManager implements Listener {
         if (request == null) return;
         if (!isSameTopInventory(event.getView(), request.inventory)) return;
         requests.remove(player.getUniqueId());
+        scheduleCleanup(player, event.getView());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -141,6 +159,30 @@ public class AnvilInputManager implements Listener {
         }
         event.setResult(result);
         setRepairCost(event.getView(), event.getInventory(), 0);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onDrop(PlayerDropItemEvent event) {
+        Player player = event.getPlayer();
+        AnvilRequest request = requests.get(player.getUniqueId());
+        if (request == null) return;
+        ItemStack item = event.getItemDrop().getItemStack();
+        if (item != null && item.getType() == Material.PAPER) {
+            event.setCancelled(true);
+            event.getItemDrop().remove();
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPickup(EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        AnvilRequest request = requests.get(player.getUniqueId());
+        if (request == null) return;
+        ItemStack item = event.getItem().getItemStack();
+        if (item != null && item.getType() == Material.PAPER) {
+            event.setCancelled(true);
+            event.getItem().remove();
+        }
     }
 
     private String colorOr(String value, String fallback) {
@@ -206,6 +248,30 @@ public class AnvilInputManager implements Listener {
     private boolean isSameTopInventory(InventoryView view, Inventory expected) {
         if (view == null || expected == null) return false;
         return view.getTopInventory() == expected;
+    }
+
+    private void scheduleCleanup(Player player, InventoryView view) {
+        org.bukkit.plugin.java.JavaPlugin owner = plugin != null ? plugin : org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(getClass());
+        if (owner == null) return;
+        Bukkit.getScheduler().runTask(owner, () -> {
+            try {
+                Inventory top = view != null ? view.getTopInventory() : null;
+                if (top != null) {
+                    top.clear();
+                }
+                if (player.getItemOnCursor() != null && player.getItemOnCursor().getType() != Material.AIR) {
+                    player.setItemOnCursor(new ItemStack(Material.AIR));
+                }
+                // Hard cleanup for any stray papers moved to inventory
+                for (ItemStack item : player.getInventory().getContents()) {
+                    if (item != null && item.getType() == Material.PAPER) {
+                        player.getInventory().remove(item);
+                    }
+                }
+                player.updateInventory();
+            } catch (Exception ignored) {
+            }
+        });
     }
 
     private record AnvilRequest(String prompt, Consumer<String> onComplete, Inventory inventory) {}

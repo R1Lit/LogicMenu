@@ -132,6 +132,13 @@ public class MenuEngine implements Listener, MenuNavigation {
         actionExecutor.execute(player, new MenuState("", 0, safeVars), action, safeVars);
     }
 
+    public void executeAction(Player player, MenuState state, MenuAction action, Map<String, String> vars) {
+        if (player == null || action == null) return;
+        Map<String, String> safeVars = vars == null ? Map.of() : vars;
+        MenuState safeState = state != null ? state : new MenuState("", 0, safeVars);
+        actionExecutor.execute(player, safeState, action, safeVars);
+    }
+
     public void reload() {
         menus.clear();
         openCommandIndex.clear();
@@ -369,26 +376,7 @@ public class MenuEngine implements Listener, MenuNavigation {
             }
         }
 
-        if (menu.getFillItem() != null) {
-            ItemStack fill = itemFactory.buildItem(menu.getFillItem(), player, baseVars, null);
-            if (fill != null) {
-                List<Integer> slots = resolveFillSlots(menu, inv.getSize());
-                if (slots.isEmpty()) {
-                    for (int i = 0; i < inv.getSize(); i++) {
-                        if (inv.getItem(i) == null) {
-                            inv.setItem(i, fill);
-                        }
-                    }
-                } else {
-                    for (int slot : slots) {
-                        if (slot < 0 || slot >= inv.getSize()) continue;
-                        if (inv.getItem(slot) == null) {
-                            inv.setItem(slot, fill);
-                        }
-                    }
-                }
-            }
-        }
+        applyFills(player, menu, holder, inv, baseVars);
 
         holder.setLastRenderTick(tickCounter);
     }
@@ -492,10 +480,154 @@ public class MenuEngine implements Listener, MenuNavigation {
 
     private List<Integer> resolveFillSlots(MenuDefinition menu, int size) {
         List<Integer> slots = new ArrayList<>();
+        String type = menu.getFillType();
+        boolean hasType = type != null && !type.isBlank();
+        if (hasType) {
+            String t = type.trim().toLowerCase(Locale.ROOT);
+            if (t.equals("none") || t.equals("off") || t.equals("disabled")) {
+                return null;
+            }
+            slots.addAll(resolveFillTypeSlots(t, size));
+        }
         if (menu.getFillSlots() != null && !menu.getFillSlots().isEmpty()) {
             slots.addAll(menu.getFillSlots());
         }
         String range = menu.getFillSlotRange();
+        if (range != null && !range.isBlank()) {
+            String[] parts = range.split("-");
+            if (parts.length == 2) {
+                try {
+                    int start = Integer.parseInt(parts[0].trim());
+                    int end = Integer.parseInt(parts[1].trim());
+                    for (int i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                        slots.add(i);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return slots;
+    }
+
+    private List<Integer> resolveFillTypeSlots(String type, int size) {
+        List<Integer> slots = new ArrayList<>();
+        int cols = 9;
+        int rows = size / cols;
+        if (rows <= 0) return slots;
+
+        switch (type) {
+            case "all":
+                for (int i = 0; i < size; i++) slots.add(i);
+                return slots;
+            case "top":
+                for (int c = 0; c < cols; c++) slots.add(c);
+                return slots;
+            case "bottom":
+                for (int c = 0; c < cols; c++) slots.add((rows - 1) * cols + c);
+                return slots;
+            case "sides":
+                for (int r = 0; r < rows; r++) {
+                    slots.add(r * cols);
+                    slots.add(r * cols + (cols - 1));
+                }
+                return slots;
+            case "corners":
+                slots.add(0);
+                slots.add(cols - 1);
+                slots.add((rows - 1) * cols);
+                slots.add(rows * cols - 1);
+                return slots;
+            case "inner":
+            case "inside":
+                for (int r = 1; r < rows - 1; r++) {
+                    for (int c = 1; c < cols - 1; c++) {
+                        slots.add(r * cols + c);
+                    }
+                }
+                return slots;
+            case "border":
+            case "frame":
+            case "outer":
+                for (int r = 0; r < rows; r++) {
+                    for (int c = 0; c < cols; c++) {
+                        boolean edge = r == 0 || r == rows - 1 || c == 0 || c == cols - 1;
+                        if (edge) slots.add(r * cols + c);
+                    }
+                }
+                return slots;
+            default:
+                return slots;
+        }
+    }
+
+    private void applyFills(Player player, MenuDefinition menu, MenuHolder holder, Inventory inv, Map<String, String> baseVars) {
+        List<pb.r1lit.LogicMenu.gui.model.MenuFillDefinition> fills = new ArrayList<>();
+        if (menu.getFills() != null && !menu.getFills().isEmpty()) {
+            fills.addAll(menu.getFills());
+        } else if (menu.getFillItem() != null) {
+            List<Integer> legacySlots = resolveFillSlots(menu, inv.getSize());
+            fills.add(new pb.r1lit.LogicMenu.gui.model.MenuFillDefinition(
+                    menu.getFillItem(),
+                    legacySlots == null ? List.of() : legacySlots,
+                    menu.getFillSlotRange(),
+                    menu.getFillType(),
+                    100
+            ));
+        }
+
+        if (fills.isEmpty()) return;
+
+        boolean[] itemOccupied = new boolean[inv.getSize()];
+        for (int i = 0; i < inv.getSize(); i++) {
+            itemOccupied[i] = inv.getItem(i) != null;
+        }
+
+        fills.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
+
+        for (var fillDef : fills) {
+            if (fillDef == null || fillDef.getItem() == null) continue;
+            ItemStack fill = itemFactory.buildItem(fillDef.getItem(), player, baseVars, null);
+            if (fill == null) continue;
+
+            List<Integer> slots = resolveFillSlots(fillDef, inv.getSize());
+            if (slots == null) continue; // disabled
+
+            if (slots.isEmpty()) {
+                String fillType = fillDef.getType();
+                if (fillType != null && !fillType.isBlank()) {
+                    continue; // explicit type, but nothing resolved
+                }
+                for (int i = 0; i < inv.getSize(); i++) {
+                    if (itemOccupied[i]) continue;
+                    inv.setItem(i, fill);
+                }
+                continue;
+            }
+
+            for (int slot : slots) {
+                if (slot < 0 || slot >= inv.getSize()) continue;
+                if (itemOccupied[slot]) continue;
+                inv.setItem(slot, fill);
+            }
+        }
+    }
+
+    private List<Integer> resolveFillSlots(pb.r1lit.LogicMenu.gui.model.MenuFillDefinition fill, int size) {
+        if (fill == null) return List.of();
+        List<Integer> slots = new ArrayList<>();
+        String type = fill.getType();
+        boolean hasType = type != null && !type.isBlank();
+        if (hasType) {
+            String t = type.trim().toLowerCase(Locale.ROOT);
+            if (t.equals("none") || t.equals("off") || t.equals("disabled")) {
+                return null;
+            }
+            slots.addAll(resolveFillTypeSlots(t, size));
+        }
+        if (fill.getSlots() != null && !fill.getSlots().isEmpty()) {
+            slots.addAll(fill.getSlots());
+        }
+        String range = fill.getSlotRange();
         if (range != null && !range.isBlank()) {
             String[] parts = range.split("-");
             if (parts.length == 2) {

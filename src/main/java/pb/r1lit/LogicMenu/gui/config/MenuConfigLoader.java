@@ -6,6 +6,7 @@ import pb.r1lit.LogicMenu.gui.model.MenuAction;
 import pb.r1lit.LogicMenu.gui.model.MenuCondition;
 import pb.r1lit.LogicMenu.gui.model.MenuDefinition;
 import pb.r1lit.LogicMenu.gui.model.MenuDynamicDefinition;
+import pb.r1lit.LogicMenu.gui.model.MenuFillDefinition;
 import pb.r1lit.LogicMenu.gui.model.MenuItemDefinition;
 import pb.r1lit.LogicMenu.gui.model.MenuRequirement;
 import pb.r1lit.LogicMenu.gui.model.MenuRequirementGroup;
@@ -71,6 +72,8 @@ public class MenuConfigLoader {
         MenuItemDefinition fillItem = null;
         List<Integer> fillSlots = new ArrayList<>();
         String fillSlotRange = "";
+        String fillType = "";
+        List<MenuFillDefinition> fills = new ArrayList<>();
         ConfigurationSection fillSec = menuSec.getConfigurationSection("fill");
         if (fillSec != null) {
             String material = fillSec.getString("material", "BLACK_STAINED_GLASS_PANE");
@@ -79,6 +82,16 @@ public class MenuConfigLoader {
             fillItem = MenuItemDefinition.emptyFill(material, name, lore);
             fillSlots.addAll(fillSec.getIntegerList("slots"));
             fillSlotRange = fillSec.getString("slot-range", "");
+            fillType = fillSec.getString("type", "");
+            int priority = fillSec.getInt("priority", 100);
+            fills.add(new MenuFillDefinition(fillItem, new ArrayList<>(fillSlots), fillSlotRange, fillType, priority));
+        }
+        if (menuSec.isList("fills")) {
+            for (Object raw : menuSec.getList("fills")) {
+                if (!(raw instanceof java.util.Map<?, ?> map)) continue;
+                MenuFillDefinition def = parseFillMap(map);
+                if (def != null) fills.add(def);
+            }
         }
 
         MenuDynamicDefinition dynamic = null;
@@ -144,7 +157,51 @@ public class MenuConfigLoader {
         }
 
         return new MenuDefinition(id, title, size, items, fillItem, dynamic, dynamics, vars, permission,
-                update, updateIntervalTicks, openRequirement, fillSlots, fillSlotRange, openCommands);
+                update, updateIntervalTicks, openRequirement, fillSlots, fillSlotRange, fillType, fills, openCommands);
+    }
+
+    private MenuFillDefinition parseFillMap(java.util.Map<?, ?> map) {
+        if (map == null) return null;
+        String material = asString(map.get("material"), "BLACK_STAINED_GLASS_PANE");
+        String name = asString(map.get("name"), " ");
+        List<String> lore = asStringList(map.get("lore"));
+        MenuItemDefinition item = MenuItemDefinition.emptyFill(material, name, lore);
+
+        List<Integer> slots = new ArrayList<>();
+        Object slotsRaw = map.get("slots");
+        if (slotsRaw instanceof List<?> list) {
+            for (Object o : list) {
+                if (o instanceof Number n) slots.add(n.intValue());
+                else if (o instanceof String s) {
+                    try { slots.add(Integer.parseInt(s)); } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        String slotRange = asString(map.get("slot-range"), "");
+        String type = asString(map.get("type"), "");
+        int priority = asInt(map.get("priority"), 100);
+
+        return new MenuFillDefinition(item, slots, slotRange, type, priority);
+    }
+
+    private String asString(Object value, String def) {
+        return value == null ? def : String.valueOf(value);
+    }
+
+    private int asInt(Object value, int def) {
+        if (value == null) return def;
+        if (value instanceof Number n) return n.intValue();
+        try { return Integer.parseInt(String.valueOf(value)); } catch (NumberFormatException e) { return def; }
+    }
+
+    private List<String> asStringList(Object value) {
+        List<String> out = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            for (Object o : list) {
+                if (o != null) out.add(String.valueOf(o));
+            }
+        }
+        return out;
     }
 
     private MenuItemDefinition parseItem(ConfigurationSection sec) {
