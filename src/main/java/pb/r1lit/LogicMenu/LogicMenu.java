@@ -48,9 +48,7 @@ public final class LogicMenu extends JavaPlugin {
         anchorStore = new pb.r1lit.LogicMenu.anchor.AnchorStore();
         anvilInput = new pb.r1lit.LogicMenu.gui.input.AnvilInputManager(this);
 
-        registerMetaActions();
-        registerAnchorActions();
-        registerAnvilActions();
+        registerInternalActions();
 
         loadExpansions(false);
 
@@ -171,6 +169,7 @@ public final class LogicMenu extends JavaPlugin {
 
     public int reloadExpansions() {
         clearApiRegistries();
+        registerInternalActions();
         disableLoadedExpansions();
         return loadExpansions(true);
     }
@@ -314,6 +313,12 @@ public final class LogicMenu extends JavaPlugin {
               });
           });
       }
+
+    private void registerInternalActions() {
+        registerMetaActions();
+        registerAnchorActions();
+        registerAnvilActions();
+    }
 
     public void registerGuiCommands() {
         var cfg = getConfig();

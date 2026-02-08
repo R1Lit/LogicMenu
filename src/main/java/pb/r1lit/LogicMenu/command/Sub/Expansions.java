@@ -34,7 +34,7 @@ public class Expansions implements Lm {
 
     @Override
     public String usage() {
-        return "[list|reload|path]";
+        return "[list|path]";
     }
 
     @Override
@@ -48,9 +48,8 @@ public class Expansions implements Lm {
                         .replace("{path}", folder.getPath()));
                 return true;
             case "reload":
-                int loaded = plugin.reloadExpansions();
-                sender.sendMessage(plugin.getLang().get("expansions.reload", "&aExpansion scan complete. Loaded: &f{count}")
-                        .replace("{count}", String.valueOf(loaded)));
+                sender.sendMessage(plugin.getLang().get("reload.usage",
+                        "&cUsage: /logicmenu reload <config|expansions>"));
                 return true;
             case "list":
             default:
@@ -79,7 +78,7 @@ public class Expansions implements Lm {
         if (args.length == 1) {
             List<String> out = new ArrayList<>();
             String prefix = args[0].toLowerCase();
-            for (String opt : List.of("list", "reload", "path")) {
+            for (String opt : List.of("list", "path")) {
                 if (opt.startsWith(prefix)) out.add(opt);
             }
             return out;

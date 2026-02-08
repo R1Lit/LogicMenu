@@ -2,6 +2,9 @@ package pb.r1lit.LogicMenu.command.Sub;
 
 import org.bukkit.command.CommandSender;
 import pb.r1lit.LogicMenu.LogicMenu;
+import pb.r1lit.LogicMenu.gui.model.MenuHolder;
+
+import java.util.Locale;
 
 public class Reload implements Lm {
     private final LogicMenu plugin;
@@ -22,21 +25,35 @@ public class Reload implements Lm {
 
     @Override
     public String description() {
-        return "Reload config and menus";
+        return "Reload config or expansions";
+    }
+
+    @Override
+    public String usage() {
+        return "<config|expansions>";
     }
 
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        sender.sendMessage(plugin.getLang().get("reload.started", "&eLogicMenu reload started..."));
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            try {
-                // Close open menus to avoid stale holders
-                plugin.getServer().getOnlinePlayers().forEach(p -> {
-                    if (p.getOpenInventory().getTopInventory().getHolder() instanceof pb.r1lit.LogicMenu.gui.model.MenuHolder) {
-                        p.closeInventory();
-                    }
-                });
+        if (args.length != 1) {
+            sender.sendMessage(plugin.getLang().get("reload.usage",
+                    "&cUsage: /logicmenu reload <config|expansions>"));
+            return true;
+        }
 
+        String mode = args[0].toLowerCase(Locale.ROOT);
+        if (!mode.equals("config") && !mode.equals("expansions")) {
+            sender.sendMessage(plugin.getLang().get("reload.usage",
+                    "&cUsage: /logicmenu reload <config|expansions>"));
+            return true;
+        }
+
+        sender.sendMessage(plugin.getLang().get("reload.started", "&eLogicMenu reload started: {type}")
+                .replace("{type}", mode));
+
+        try {
+            closeOpenLogicMenus();
+            if (mode.equals("config")) {
                 plugin.reloadConfig();
                 plugin.getLang().reload();
                 plugin.registerGuiCommands();
@@ -45,14 +62,25 @@ public class Reload implements Lm {
                     plugin.getLogger().info(plugin.getLang().get("log.menus_loaded", "Menus loaded: {count}")
                             .replace("{count}", String.valueOf(plugin.getMenus().getMenuCount())));
                 }
-                // Re-scan expansions if needed
-                plugin.reloadExpansions();
-                sender.sendMessage(plugin.getLang().get("reload.done", "&aLogicMenu reloaded."));
-            } catch (Exception e) {
-                sender.sendMessage(plugin.getLang().get("reload.failed", "&cReload failed: {error}")
-                        .replace("{error}", e.getMessage()));
+            } else {
+                int loaded = plugin.reloadExpansions();
+                sender.sendMessage(plugin.getLang().get("expansions.reload", "&aExpansion scan complete. Loaded: &f{count}")
+                        .replace("{count}", String.valueOf(loaded)));
+            }
+            sender.sendMessage(plugin.getLang().get("reload.done", "&aLogicMenu reloaded: {type}")
+                    .replace("{type}", mode));
+        } catch (Exception e) {
+            sender.sendMessage(plugin.getLang().get("reload.failed", "&cReload failed: {error}")
+                    .replace("{error}", e.getMessage()));
+        }
+        return true;
+    }
+
+    private void closeOpenLogicMenus() {
+        plugin.getServer().getOnlinePlayers().forEach(player -> {
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder) {
+                player.closeInventory();
             }
         });
-        return true;
     }
 }

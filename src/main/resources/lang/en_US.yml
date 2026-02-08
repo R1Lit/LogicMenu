@@ -15,8 +15,9 @@ command:
   unknown_subcommand: "&cUnknown subcommand. Use /{label} help."
 
 reload:
-  started: "&eLogicMenu reload started..."
-  done: "&aLogicMenu reloaded."
+  usage: "&cUsage: /logicmenu reload <config|expansions>"
+  started: "&eLogicMenu reload started: &f{type}"
+  done: "&aLogicMenu reloaded: &f{type}"
   failed: "&cReload failed: {error}"
 
 help:
