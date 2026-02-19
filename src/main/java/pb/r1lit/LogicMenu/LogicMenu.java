@@ -78,6 +78,29 @@ public final class LogicMenu extends JavaPlugin {
         getLogger().info(lang.get("log.enabled", "LogicMenu enabled."));
     }
 
+    @Override
+    public void onDisable() {
+        // Cancel all plugin tasks (refresh timer, meta auto-save, etc.)
+        getServer().getScheduler().cancelTasks(this);
+
+        // Close all open LogicMenu inventories
+        getServer().getOnlinePlayers().forEach(player -> {
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof pb.r1lit.LogicMenu.gui.model.MenuHolder) {
+                player.closeInventory();
+            }
+        });
+
+        // Flush MetaStore to disk synchronously
+        if (metaStore != null) {
+            metaStore.shutdown();
+        }
+
+        // Unregister services
+        getServer().getServicesManager().unregisterAll(this);
+
+        instance = null;
+    }
+
     public static LogicMenu getInstance() {
         return instance;
     }

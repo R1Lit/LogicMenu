@@ -41,17 +41,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class MenuEngine implements Listener, MenuNavigation {
     private final LogicMenu plugin;
     private final MenuConfigLoader loader = new MenuConfigLoader();
-    private final Map<String, MenuDefinition> menus = new HashMap<>();
-    private final Map<String, MenuDynamicProvider> providers = new HashMap<>();
-    private final Map<UUID, Deque<MenuState>> history = new HashMap<>();
-    private final Map<UUID, Map<String, Long>> clickCooldowns = new HashMap<>();
-    private final Map<String, String> openCommandIndex = new HashMap<>();
-    private final Map<String, String> pathIndex = new HashMap<>();
+    private final Map<String, MenuDefinition> menus = new ConcurrentHashMap<>();
+    private final Map<String, MenuDynamicProvider> providers = new ConcurrentHashMap<>();
+    private final Map<UUID, Deque<MenuState>> history = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<String, Long>> clickCooldowns = new ConcurrentHashMap<>();
+    private final Map<String, String> openCommandIndex = new ConcurrentHashMap<>();
+    private final Map<String, String> pathIndex = new ConcurrentHashMap<>();
     private LogicMenuApi api;
     private final MenuTextResolver resolver = new MenuTextResolver();
     private final MenuItemFactory itemFactory;

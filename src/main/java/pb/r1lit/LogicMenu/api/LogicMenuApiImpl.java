@@ -11,6 +11,8 @@ public class LogicMenuApiImpl implements LogicMenuApi {
     private final Map<String, MenuActionHandler> actions = new ConcurrentHashMap<>();
     private final Map<String, ConditionHandler> conditions = new ConcurrentHashMap<>();
     private final Map<String, VarProvider> varProviders = new ConcurrentHashMap<>();
+    private final Map<String, java.util.concurrent.atomic.AtomicInteger> varProviderErrors = new ConcurrentHashMap<>();
+    private static final int MAX_PROVIDER_ERRORS = 5;
     private final MenuEngine menus;
 
     public LogicMenuApiImpl(MenuEngine menus) {
@@ -59,29 +61,37 @@ public class LogicMenuApiImpl implements LogicMenuApi {
     public boolean registerVarProvider(String id, VarProvider provider) {
         if (id == null || id.isBlank() || provider == null) return false;
         varProviders.put(id.toUpperCase(Locale.ROOT), provider);
+        varProviderErrors.remove(id.toUpperCase(Locale.ROOT));
         return true;
     }
 
     @Override
     public boolean unregisterVarProvider(String id) {
         if (id == null || id.isBlank()) return false;
+        varProviderErrors.remove(id.toUpperCase(Locale.ROOT));
         return varProviders.remove(id.toUpperCase(Locale.ROOT)) != null;
     }
 
     @Override
     public void applyVars(org.bukkit.entity.Player player, Map<String, String> vars) {
-        var iterator = varProviders.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<String, VarProvider> entry = iterator.next();
+        for (Map.Entry<String, VarProvider> entry : varProviders.entrySet()) {
             try {
                 entry.getValue().apply(player, vars);
+                varProviderErrors.remove(entry.getKey()); // reset on success
             } catch (Throwable t) {
-                iterator.remove();
+                java.util.concurrent.atomic.AtomicInteger counter =
+                        varProviderErrors.computeIfAbsent(entry.getKey(), k -> new java.util.concurrent.atomic.AtomicInteger(0));
+                int errors = counter.incrementAndGet();
                 try {
                     var logger = pb.r1lit.LogicMenu.LogicMenu.getInstance() != null
                             ? pb.r1lit.LogicMenu.LogicMenu.getInstance().getLogger()
                             : java.util.logging.Logger.getLogger("LogicMenu");
-                    logger.warning("[LogicMenu] Removed var provider '" + entry.getKey() + "' due to error: " + t.getMessage());
+                    logger.warning("[var-provider] Error in '" + entry.getKey() + "' (" + errors + "/" + MAX_PROVIDER_ERRORS + "): " + t.getMessage());
+                    if (errors >= MAX_PROVIDER_ERRORS) {
+                        logger.severe("[var-provider] Provider '" + entry.getKey() + "' exceeded error threshold, unregistering.");
+                        varProviders.remove(entry.getKey());
+                        varProviderErrors.remove(entry.getKey());
+                    }
                 } catch (Throwable ignored) {
                 }
             }

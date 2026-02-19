@@ -9,3 +9,16 @@ javascript:
   enabled: false
   timeout-ms: 25
   allow-packages: []
+
+# Console command security.
+# When 'enabled' is false, all CONSOLE_COMMAND actions are blocked.
+# When 'whitelist' is empty, all commands are allowed (backwards compatible).
+# When 'whitelist' has entries, only commands starting with those roots are allowed.
+console-commands:
+  enabled: true
+  whitelist: []
+  # Example whitelist:
+  # whitelist:
+  #   - give
+  #   - eco
+  #   - lp

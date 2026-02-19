@@ -54,7 +54,14 @@ public class MenuRequirementService {
     private static final Pattern PACKAGES_PATTERN = Pattern.compile("Packages\\.([a-zA-Z0-9_\\.]+)");
     private static final Pattern DIRECT_PACKAGE_PATTERN = Pattern.compile("\\b(java|javax|sun|com|org|jdk)\\.[A-Za-z0-9_\\.]+");
     private static final List<String> BLOCKED_TOKENS = List.of("java.", "javax.", "sun.", "com.", "org.", "jdk.",
-            "packages", "java.type", "classloader", "runtime", "process");
+            "packages", "java.type", "classloader", "runtime", "process",
+            "eval(", "function(", "function (", "load(", "loadwithNewGlobal",
+            "constructor", "getclass", "forname", "processbuilder", "thread",
+            "reflect", "invoke", "proxy", "unsafe", "defineclass",
+            "scriptengine", "scriptcontext", "importpackage", "importclass",
+            "exit", "quit", "system.", "file", "socket", "url(", "uri(",
+            "__proto__", "prototype", "nashorn", "graal");
+    private static final int MAX_EXPRESSION_LENGTH = 500;
 
     public MenuRequirementService(LogicMenu plugin, MenuTextResolver resolver, MenuActionExecutor actionExecutor) {
         this.plugin = plugin;
@@ -259,6 +266,10 @@ public class MenuRequirementService {
 
     private boolean evalJavascript(String expression, Player player, Map<String, String> vars) {
         if (expression == null || expression.isBlank()) return false;
+        if (expression.length() > MAX_EXPRESSION_LENGTH) {
+            plugin.getLogger().warning("Javascript expression exceeds maximum length of " + MAX_EXPRESSION_LENGTH + " characters.");
+            return false;
+        }
         if (!plugin.getConfig().getBoolean("javascript.enabled", false)) {
             if (jsDisabledLogged.compareAndSet(false, true)) {
                 plugin.getLogger().warning("Javascript requirements are disabled. Enable javascript.enabled in config.yml if you trust your configs.");

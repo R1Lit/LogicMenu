@@ -12,13 +12,18 @@ import pb.r1lit.LogicMenu.api.LogicMenuApi;
 import pb.r1lit.LogicMenu.gui.service.MenuTextResolver;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MenuActionExecutor {
     private final LogicMenu plugin;
     private final MenuTextResolver resolver;
     private final MenuNavigation navigation;
+    private final Map<String, AtomicInteger> handlerErrorCounts = new ConcurrentHashMap<>();
+    private static final int MAX_HANDLER_ERRORS = 5;
 
     public MenuActionExecutor(LogicMenu plugin, MenuTextResolver resolver, MenuNavigation navigation) {
         this.plugin = plugin;
@@ -33,7 +38,14 @@ public class MenuActionExecutor {
 
         switch (action.getType()) {
             case COMMAND -> player.performCommand(resolver.resolve(action.getValue(), player, vars));
-            case CONSOLE_COMMAND -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolver.resolve(action.getValue(), player, vars));
+            case CONSOLE_COMMAND -> {
+                String consoleCmd = resolver.resolve(action.getValue(), player, vars);
+                if (!isConsoleCommandAllowed(consoleCmd)) {
+                    plugin.getLogger().warning("[security] Blocked console command: " + consoleCmd);
+                    return;
+                }
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), consoleCmd);
+            }
             case MESSAGE -> player.sendMessage(resolver.resolve(action.getValue(), player, vars));
             case ACTIONBAR -> player.sendActionBar(resolver.resolve(action.getValue(), player, vars));
             case TITLE -> {
@@ -126,13 +138,22 @@ public class MenuActionExecutor {
             case CUSTOM -> {
                 LogicMenuApi api = plugin.getApi();
                 if (api == null) return;
-                LogicMenuApi.MenuActionHandler handler = api.getActionHandler(action.getTypeKey());
+                String typeKey = action.getTypeKey();
+                LogicMenuApi.MenuActionHandler handler = api.getActionHandler(typeKey);
                 if (handler != null) {
                     try {
                         handler.execute(player, current, action, vars);
+                        handlerErrorCounts.remove(typeKey); // reset on success
                     } catch (Throwable t) {
-                        if (api instanceof pb.r1lit.LogicMenu.api.LogicMenuApiImpl impl) {
-                            impl.unregisterAction(action.getTypeKey());
+                        AtomicInteger counter = handlerErrorCounts.computeIfAbsent(typeKey, k -> new AtomicInteger(0));
+                        int errors = counter.incrementAndGet();
+                        plugin.getLogger().warning("[action] Error in handler '" + typeKey + "' (" + errors + "/" + MAX_HANDLER_ERRORS + "): " + t.getMessage());
+                        if (errors >= MAX_HANDLER_ERRORS) {
+                            plugin.getLogger().severe("[action] Handler '" + typeKey + "' exceeded error threshold, unregistering.");
+                            if (api instanceof pb.r1lit.LogicMenu.api.LogicMenuApiImpl impl) {
+                                impl.unregisterAction(typeKey);
+                            }
+                            handlerErrorCounts.remove(typeKey);
                         }
                     }
                 }
@@ -197,5 +218,22 @@ public class MenuActionExecutor {
         MenuAction delayed = new MenuAction(action.getType(), action.getValue(), newParams);
         Bukkit.getScheduler().runTaskLater(plugin, () -> execute(player, current, delayed, vars), delay);
         return true;
+    }
+
+    private boolean isConsoleCommandAllowed(String command) {
+        if (command == null || command.isBlank()) return false;
+        if (!plugin.getConfig().getBoolean("console-commands.enabled", true)) {
+            return false;
+        }
+        List<String> whitelist = plugin.getConfig().getStringList("console-commands.whitelist");
+        if (whitelist == null || whitelist.isEmpty()) {
+            return true; // no whitelist = allow all (backwards compatible)
+        }
+        String cmdRoot = command.split("\\s+")[0].toLowerCase(Locale.ROOT);
+        for (String allowed : whitelist) {
+            if (allowed == null) continue;
+            if (cmdRoot.equalsIgnoreCase(allowed.trim())) return true;
+        }
+        return false;
     }
 }
