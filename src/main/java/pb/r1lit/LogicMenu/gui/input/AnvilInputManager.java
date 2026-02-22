@@ -3,6 +3,7 @@ package pb.r1lit.LogicMenu.gui.input;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -19,6 +20,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Map;
 import java.util.UUID;
@@ -29,9 +31,11 @@ public class AnvilInputManager implements Listener {
 
     private final Map<UUID, AnvilRequest> requests = new ConcurrentHashMap<>();
     private final org.bukkit.plugin.java.JavaPlugin plugin;
+    private final NamespacedKey tempPaperKey;
 
     public AnvilInputManager(org.bukkit.plugin.java.JavaPlugin plugin) {
         this.plugin = plugin;
+        this.tempPaperKey = new NamespacedKey(plugin, "anvil_temp_paper");
     }
 
     public void open(Player player, String title, String prompt, Consumer<String> onComplete) {
@@ -40,20 +44,9 @@ public class AnvilInputManager implements Listener {
 
         InventoryView view = openAnvilView(player);
         if (view == null) {
-            // Fallback to legacy custom inventory (may not support rename on some servers)
             String safeTitle = colorOr(title, "&8Input");
             Inventory inv = Bukkit.createInventory(new AnvilHolder(player.getUniqueId()), InventoryType.ANVIL, safeTitle);
-            ItemStack paper = new ItemStack(Material.PAPER);
-            ItemMeta meta = paper.getItemMeta();
-            if (meta != null) {
-                if (!safePrompt.isBlank()) {
-                    meta.setDisplayName(safePrompt);
-                } else {
-                    // Use a single space to avoid showing the default "Paper" name.
-                    meta.setDisplayName(" ");
-                }
-                paper.setItemMeta(meta);
-            }
+            ItemStack paper = createTempPaper(safePrompt);
             inv.setItem(0, paper);
             requests.put(player.getUniqueId(), new AnvilRequest(strip(safePrompt), onComplete, inv));
             player.openInventory(inv);
@@ -62,16 +55,7 @@ public class AnvilInputManager implements Listener {
 
         applyTitle(view, title);
         Inventory top = view.getTopInventory();
-        ItemStack paper = new ItemStack(Material.PAPER);
-        ItemMeta meta = paper.getItemMeta();
-        if (meta != null) {
-            if (!safePrompt.isBlank()) {
-                meta.setDisplayName(safePrompt);
-            } else {
-                meta.setDisplayName(" ");
-            }
-            paper.setItemMeta(meta);
-        }
+        ItemStack paper = createTempPaper(safePrompt);
         top.setItem(0, paper);
 
         requests.put(player.getUniqueId(), new AnvilRequest(strip(safePrompt), onComplete, top));
@@ -104,8 +88,10 @@ public class AnvilInputManager implements Listener {
         }
 
         request = requests.remove(player.getUniqueId());
-        event.setCurrentItem(new ItemStack(Material.AIR));
-        if (event.getCursor() != null && event.getCursor().getType() != Material.AIR) {
+        if (isTempPaper(event.getCurrentItem())) {
+            event.setCurrentItem(new ItemStack(Material.AIR));
+        }
+        if (isTempPaper(event.getCursor())) {
             event.setCursor(new ItemStack(Material.AIR));
         }
         scheduleCleanup(player, event.getView());
@@ -150,7 +136,7 @@ public class AnvilInputManager implements Listener {
         }
 
         ItemStack base = event.getInventory().getItem(0);
-        if (base == null) base = new ItemStack(Material.PAPER);
+        if (base == null || !isTempPaper(base)) base = createTempPaper("");
         ItemStack result = base.clone();
         ItemMeta meta = result.getItemMeta();
         if (meta != null) {
@@ -163,11 +149,8 @@ public class AnvilInputManager implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDrop(PlayerDropItemEvent event) {
-        Player player = event.getPlayer();
-        AnvilRequest request = requests.get(player.getUniqueId());
-        if (request == null) return;
         ItemStack item = event.getItemDrop().getItemStack();
-        if (item != null && item.getType() == Material.PAPER) {
+        if (isTempPaper(item)) {
             event.setCancelled(true);
             event.getItemDrop().remove();
         }
@@ -175,11 +158,8 @@ public class AnvilInputManager implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPickup(EntityPickupItemEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-        AnvilRequest request = requests.get(player.getUniqueId());
-        if (request == null) return;
         ItemStack item = event.getItem().getItemStack();
-        if (item != null && item.getType() == Material.PAPER) {
+        if (isTempPaper(item)) {
             event.setCancelled(true);
             event.getItem().remove();
         }
@@ -257,21 +237,57 @@ public class AnvilInputManager implements Listener {
             try {
                 Inventory top = view != null ? view.getTopInventory() : null;
                 if (top != null) {
-                    top.clear();
+                    for (int i = 0; i < top.getSize(); i++) {
+                        if (isTempPaper(top.getItem(i))) {
+                            top.setItem(i, null);
+                        }
+                    }
                 }
-                if (player.getItemOnCursor() != null && player.getItemOnCursor().getType() != Material.AIR) {
+                if (isTempPaper(player.getItemOnCursor())) {
                     player.setItemOnCursor(new ItemStack(Material.AIR));
                 }
-                // Hard cleanup for any stray papers moved to inventory
-                for (ItemStack item : player.getInventory().getContents()) {
-                    if (item != null && item.getType() == Material.PAPER) {
-                        player.getInventory().remove(item);
+                ItemStack[] contents = player.getInventory().getContents();
+                boolean changed = false;
+                for (int i = 0; i < contents.length; i++) {
+                    if (isTempPaper(contents[i])) {
+                        contents[i] = null;
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    player.getInventory().setContents(contents);
+                }
+                for (var entity : player.getNearbyEntities(2.0, 2.0, 2.0)) {
+                    if (entity instanceof org.bukkit.entity.Item dropped && isTempPaper(dropped.getItemStack())) {
+                        dropped.remove();
                     }
                 }
                 player.updateInventory();
             } catch (Exception ignored) {
             }
         });
+    }
+
+    private ItemStack createTempPaper(String displayName) {
+        ItemStack paper = new ItemStack(Material.PAPER);
+        ItemMeta meta = paper.getItemMeta();
+        if (meta != null) {
+            String safeName = displayName == null ? "" : displayName;
+            if (safeName.isBlank()) {
+                safeName = ChatColor.RESET.toString();
+            }
+            meta.setDisplayName(safeName);
+            meta.getPersistentDataContainer().set(tempPaperKey, PersistentDataType.BYTE, (byte) 1);
+            paper.setItemMeta(meta);
+        }
+        return paper;
+    }
+
+    private boolean isTempPaper(ItemStack item) {
+        if (item == null || item.getType() != Material.PAPER) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+        return meta.getPersistentDataContainer().has(tempPaperKey, PersistentDataType.BYTE);
     }
 
     private record AnvilRequest(String prompt, Consumer<String> onComplete, Inventory inventory) {}
